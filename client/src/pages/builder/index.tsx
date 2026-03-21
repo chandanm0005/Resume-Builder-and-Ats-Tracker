@@ -5,44 +5,69 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Upload, FileText, AlertCircle, CheckCircle2, Plus, Trash2, Download } from "lucide-react";
+import { Sparkles, Upload, FileText, AlertCircle, CheckCircle2, Plus, Trash2, Download, LayoutTemplate } from "lucide-react";
 import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
+// Custom Textarea with inline "ghost" suggestions
+function GhostTextarea({ value, onChange, suggestion, placeholder, className, ...props }: any) {
+  const [dismissed, setDismissed] = useState(false);
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Tab' && !value && suggestion && !dismissed) {
+      e.preventDefault();
+      onChange(suggestion);
+      setDismissed(true);
+    }
+  };
+
+  return (
+    <div className="relative w-full">
+      {!value && suggestion && !dismissed && (
+        <div 
+          className="absolute top-[9px] left-[13px] right-[13px] pointer-events-none text-primary/40 font-mono text-sm whitespace-pre-wrap select-none"
+        >
+          {suggestion}
+          <div className="mt-4 text-xs text-primary/70 flex items-center gap-1.5 bg-primary/10 w-fit px-2.5 py-1.5 rounded-md border border-primary/20 backdrop-blur-sm shadow-lg">
+            <Sparkles className="w-3 h-3" /> Press Tab to accept (Boosts ATS Score)
+          </div>
+        </div>
+      )}
+      <Textarea
+        value={value}
+        onChange={(e) => {
+          onChange(e.target.value);
+          if (e.target.value) setDismissed(true);
+        }}
+        onClick={() => setDismissed(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={dismissed || value ? placeholder : ""}
+        className={`relative z-10 bg-transparent min-h-[140px] ${className}`}
+        {...props}
+      />
+    </div>
+  );
+}
+
 export default function BuilderPage() {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('modern');
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Dynamic experiences state
+  // Dynamic state (initially empty to allow users to fill their details)
   const [experiences, setExperiences] = useState([
-    {
-      id: 1,
-      title: "Software Engineer",
-      company: "Tech Corp",
-      description: "• Developed a web application using React and Node.js\n• Improved database queries\n• Worked with team to deliver features",
-      showSuggestions: false
-    }
+    { id: 1, title: "", company: "", description: "", showSuggestions: false }
   ]);
 
   const [projects, setProjects] = useState([
-    {
-      id: 1,
-      title: "E-Commerce Platform",
-      technologies: "React, Node.js, MongoDB",
-      description: "• Built a full-stack e-commerce platform with stripe integration",
-    }
+    { id: 1, title: "", technologies: "", description: "" }
   ]);
 
   const [education, setEducation] = useState([
-    {
-      id: 1,
-      school: "University of Technology",
-      degree: "B.S. Computer Science",
-      year: "2018 - 2022"
-    }
+    { id: 1, school: "", degree: "", year: "" }
   ]);
 
   const simulateAnalysis = () => {
@@ -81,43 +106,33 @@ export default function BuilderPage() {
   };
 
   // --- Experience Handlers ---
-  const addExperience = () => {
-    setExperiences([...experiences, { id: Date.now(), title: "", company: "", description: "", showSuggestions: false }]);
-  };
+  const addExperience = () => setExperiences([...experiences, { id: Date.now(), title: "", company: "", description: "", showSuggestions: false }]);
   const removeExperience = (id: number) => setExperiences(experiences.filter(exp => exp.id !== id));
-  const updateExperience = (id: number, field: string, value: string) => {
-    setExperiences(experiences.map(exp => exp.id === id ? { ...exp, [field]: value } : exp));
-  };
-  const toggleSuggestions = (id: number) => {
-    setExperiences(experiences.map(exp => exp.id === id ? { ...exp, showSuggestions: !exp.showSuggestions } : { ...exp, showSuggestions: false }));
-  };
-  const applySuggestion = (id: number, oldText: string, newText: string) => {
-    setExperiences(experiences.map(exp => {
-      if (exp.id === id) return { ...exp, description: exp.description.replace(oldText, newText), showSuggestions: false };
-      return exp;
-    }));
-  };
+  const updateExperience = (id: number, field: string, value: string) => setExperiences(experiences.map(exp => exp.id === id ? { ...exp, [field]: value } : exp));
 
   // --- Project Handlers ---
   const addProject = () => setProjects([...projects, { id: Date.now(), title: "", technologies: "", description: "" }]);
   const removeProject = (id: number) => setProjects(projects.filter(p => p.id !== id));
-  const updateProject = (id: number, field: string, value: string) => {
-    setProjects(projects.map(p => p.id === id ? { ...p, [field]: value } : p));
-  };
+  const updateProject = (id: number, field: string, value: string) => setProjects(projects.map(p => p.id === id ? { ...p, [field]: value } : p));
 
   // --- Education Handlers ---
   const addEducation = () => setEducation([...education, { id: Date.now(), school: "", degree: "", year: "" }]);
   const removeEducation = (id: number) => setEducation(education.filter(e => e.id !== id));
-  const updateEducation = (id: number, field: string, value: string) => {
-    setEducation(education.map(e => e.id === id ? { ...e, [field]: value } : e));
-  };
+  const updateEducation = (id: number, field: string, value: string) => setEducation(education.map(e => e.id === id ? { ...e, [field]: value } : e));
 
   const handleExport = () => {
     toast({
       title: "Exporting Resume",
-      description: "Generating your ATS-optimized PDF...",
+      description: `Generating your ATS-optimized PDF using the ${selectedTemplate} template...`,
     });
   };
+
+  const templates = [
+    { id: 'modern', name: 'Modern ATS', desc: 'Clean, robust parsing' },
+    { id: 'minimalist', name: 'Minimalist', desc: 'Simple text focus' },
+    { id: 'professional', name: 'Professional', desc: 'Traditional layout' },
+    { id: 'creative', name: 'Creative', desc: 'Bold typography' }
+  ];
 
   return (
     <div className="min-h-screen flex flex-col pb-20">
@@ -129,24 +144,24 @@ export default function BuilderPage() {
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold font-mono tracking-tight">Resume Builder</h1>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Job Description</span>
+              <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Job Description & Setup</span>
               <span className="w-8 h-px bg-border"></span>
-              <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Content</span>
+              <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Content & AI Edit</span>
               <span className="w-8 h-px bg-border"></span>
               <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Export</span>
             </div>
           </div>
 
           {step === 1 && (
-            <div className="grid md:grid-cols-2 gap-8">
-              <Card className="glass-panel border-white/10 col-span-2 md:col-span-1">
+            <div className="grid md:grid-cols-3 gap-8">
+              <Card className="glass-panel border-white/10 md:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <TargetIcon className="w-5 h-5 text-primary" />
                     Target Job Description
                   </CardTitle>
                   <CardDescription>
-                    Paste the job description here. Our AI will extract key requirements.
+                    Paste the job description here to optimize your resume keywords.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -155,7 +170,7 @@ export default function BuilderPage() {
                     <Textarea 
                       id="jd" 
                       placeholder="Paste the full job description here..." 
-                      className="min-h-[300px] font-mono text-sm bg-background/50 border-white/10"
+                      className="min-h-[350px] font-mono text-sm bg-background/50 border-white/10"
                     />
                   </div>
                   <Button className="w-full gap-2" onClick={simulateAnalysis} disabled={isAnalyzing}>
@@ -167,7 +182,7 @@ export default function BuilderPage() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        Extract Keywords & Skills
+                        Start Building with AI
                       </>
                     )}
                   </Button>
@@ -175,6 +190,35 @@ export default function BuilderPage() {
               </Card>
 
               <div className="space-y-6">
+                <Card className="glass-panel border-white/10">
+                  <CardHeader>
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <LayoutTemplate className="w-4 h-4 text-primary" /> Select Template
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 gap-3">
+                      {templates.map(t => (
+                        <div 
+                          key={t.id}
+                          onClick={() => setSelectedTemplate(t.id)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                            selectedTemplate === t.id 
+                              ? 'border-primary bg-primary/10' 
+                              : 'border-white/10 hover:border-white/30 bg-background/50'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm">{t.name}</span>
+                            {selectedTemplate === t.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
+                          </div>
+                          <div className="text-xs text-muted-foreground">{t.desc}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
                 <Card className="glass-panel border-white/10 opacity-50 grayscale pointer-events-none transition-all duration-500">
                   <CardHeader>
                     <CardTitle className="text-sm font-medium text-muted-foreground">Extracted Skills</CardTitle>
@@ -213,27 +257,27 @@ export default function BuilderPage() {
                           <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label>Full Name</Label>
-                              <Input defaultValue="John Doe" className="bg-background/50" />
+                              <Input placeholder="e.g. John Doe" className="bg-background/50" />
                             </div>
                             <div className="space-y-2">
                               <Label>Email</Label>
-                              <Input defaultValue="john@example.com" type="email" className="bg-background/50" />
+                              <Input placeholder="john@example.com" type="email" className="bg-background/50" />
                             </div>
                             <div className="space-y-2">
                               <Label>Phone</Label>
-                              <Input defaultValue="(555) 123-4567" className="bg-background/50" />
+                              <Input placeholder="(555) 123-4567" className="bg-background/50" />
                             </div>
                             <div className="space-y-2">
                               <Label>Location</Label>
-                              <Input defaultValue="San Francisco, CA" className="bg-background/50" />
+                              <Input placeholder="San Francisco, CA" className="bg-background/50" />
                             </div>
                             <div className="space-y-2">
                               <Label>LinkedIn</Label>
-                              <Input defaultValue="linkedin.com/in/johndoe" className="bg-background/50" />
+                              <Input placeholder="linkedin.com/in/johndoe" className="bg-background/50" />
                             </div>
                             <div className="space-y-2">
                               <Label>GitHub / Portfolio</Label>
-                              <Input defaultValue="github.com/johndoe" className="bg-background/50" />
+                              <Input placeholder="github.com/johndoe" className="bg-background/50" />
                             </div>
                           </div>
                         </CardContent>
@@ -304,49 +348,14 @@ export default function BuilderPage() {
                               <div className="space-y-2">
                                 <div className="flex items-center justify-between">
                                   <Label>Description & Achievements</Label>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    className={`h-7 text-xs gap-1 transition-colors ${exp.showSuggestions ? 'bg-primary/20 text-primary' : 'text-primary'}`}
-                                    onClick={() => toggleSuggestions(exp.id)}
-                                  >
-                                    <Sparkles className="w-3 h-3" /> Optimize with AI
-                                  </Button>
                                 </div>
-                                <Textarea 
-                                  className="min-h-[120px] font-mono text-sm leading-relaxed"
+                                <GhostTextarea 
                                   value={exp.description}
-                                  onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
+                                  onChange={(val: string) => updateExperience(exp.id, 'description', val)}
                                   placeholder="• Describe your responsibilities and achievements..."
+                                  suggestion="• Architected a scalable full-stack application using React and Node.js&#10;• Optimized complex PostgreSQL queries, reducing API latency by 40%&#10;• Implemented CI/CD pipelines using Docker and AWS"
                                 />
                               </div>
-                              
-                              {exp.showSuggestions && (
-                                <div className="p-4 mt-2 rounded-xl border border-primary/30 bg-primary/5 shadow-inner animate-in fade-in zoom-in-95">
-                                  <div className="flex items-center gap-2 mb-3 text-primary font-medium text-sm">
-                                    <Sparkles className="w-4 h-4" /> Suggested Improvements
-                                  </div>
-                                  <div className="space-y-3">
-                                    <div 
-                                      className="text-xs p-3 rounded-lg bg-background/80 border border-primary/20 cursor-pointer hover:border-primary/50 transition-colors"
-                                      onClick={() => applySuggestion(exp.id, "Developed a web application", "Architected a scalable full-stack application using React and Node.js, serving 10k+ monthly users")}
-                                    >
-                                      <p className="text-muted-foreground mb-1">Click to apply this rewrite:</p>
-                                      <span className="text-red-400 line-through mr-2">Developed a web app</span>
-                                      <br/>
-                                      <span className="text-green-400">Architected a scalable full-stack application using React and Node.js, serving 10k+ monthly users</span>
-                                    </div>
-                                    <div 
-                                      className="text-xs p-3 rounded-lg bg-background/80 border border-primary/20 cursor-pointer hover:border-primary/50 transition-colors"
-                                      onClick={() => applySuggestion(exp.id, "Improved database queries", "Optimized complex PostgreSQL queries, reducing API latency by 40%")}
-                                    >
-                                      <span className="text-red-400 line-through mr-2">Improved database queries</span>
-                                      <br/>
-                                      <span className="text-green-400">Optimized complex PostgreSQL queries, reducing API latency by 40%</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           ))}
 
@@ -387,6 +396,7 @@ export default function BuilderPage() {
                                   <Input 
                                     value={proj.title} 
                                     onChange={(e) => updateProject(proj.id, 'title', e.target.value)}
+                                    placeholder="e.g. E-Commerce Platform"
                                     className="bg-background/50" 
                                   />
                                 </div>
@@ -395,16 +405,18 @@ export default function BuilderPage() {
                                   <Input 
                                     value={proj.technologies} 
                                     onChange={(e) => updateProject(proj.id, 'technologies', e.target.value)}
+                                    placeholder="e.g. React, Node.js, MongoDB"
                                     className="bg-background/50" 
                                   />
                                 </div>
                               </div>
                               <div className="space-y-2">
                                 <Label>Description</Label>
-                                <Textarea 
-                                  className="min-h-[80px] font-mono text-sm leading-relaxed"
+                                <GhostTextarea 
                                   value={proj.description}
-                                  onChange={(e) => updateProject(proj.id, 'description', e.target.value)}
+                                  onChange={(val: string) => updateProject(proj.id, 'description', val)}
+                                  placeholder="• Explain what you built and the impact..."
+                                  suggestion="• Developed an AI-powered resume analyzer using Python and NLP&#10;• Integrated Docker for containerization and AWS for deployment&#10;• Achieved 95% accuracy in keyword extraction using KeyBERT"
                                 />
                               </div>
                             </div>
@@ -442,6 +454,7 @@ export default function BuilderPage() {
                                   <Input 
                                     value={edu.school} 
                                     onChange={(e) => updateEducation(edu.id, 'school', e.target.value)}
+                                    placeholder="e.g. University of Technology"
                                     className="bg-background/50" 
                                   />
                                 </div>
@@ -450,6 +463,7 @@ export default function BuilderPage() {
                                   <Input 
                                     value={edu.degree} 
                                     onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
+                                    placeholder="e.g. B.S. Computer Science"
                                     className="bg-background/50" 
                                   />
                                 </div>
@@ -458,6 +472,7 @@ export default function BuilderPage() {
                                   <Input 
                                     value={edu.year} 
                                     onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
+                                    placeholder="e.g. 2018 - 2022"
                                     className="bg-background/50" 
                                   />
                                 </div>
@@ -518,7 +533,7 @@ export default function BuilderPage() {
                      <div className="pt-4 border-t border-white/10">
                         <Button className="w-full gap-2" onClick={handleExport}>
                           <Download className="w-4 h-4" />
-                          Export PDF
+                          Export {templates.find(t => t.id === selectedTemplate)?.name} PDF
                         </Button>
                      </div>
                    </CardContent>
