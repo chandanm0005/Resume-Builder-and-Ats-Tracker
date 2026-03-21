@@ -5,13 +5,45 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Sparkles, Upload, FileText, AlertCircle, CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { Sparkles, Upload, FileText, AlertCircle, CheckCircle2, Plus, Trash2, Download } from "lucide-react";
+import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 
 export default function BuilderPage() {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Dynamic experiences state
+  const [experiences, setExperiences] = useState([
+    {
+      id: 1,
+      title: "Software Engineer",
+      company: "Tech Corp",
+      description: "• Developed a web application using React and Node.js\n• Improved database queries\n• Worked with team to deliver features",
+      showSuggestions: false
+    }
+  ]);
+
+  const [projects, setProjects] = useState([
+    {
+      id: 1,
+      title: "E-Commerce Platform",
+      technologies: "React, Node.js, MongoDB",
+      description: "• Built a full-stack e-commerce platform with stripe integration",
+    }
+  ]);
+
+  const [education, setEducation] = useState([
+    {
+      id: 1,
+      school: "University of Technology",
+      degree: "B.S. Computer Science",
+      year: "2018 - 2022"
+    }
+  ]);
 
   const simulateAnalysis = () => {
     setIsAnalyzing(true);
@@ -19,6 +51,72 @@ export default function BuilderPage() {
       setIsAnalyzing(false);
       setStep(2);
     }, 2000);
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      toast({
+        title: "Analyzing Resume",
+        description: "Extracting skills and experience from your PDF...",
+      });
+      
+      setTimeout(() => {
+        toast({
+          title: "Import Complete",
+          description: "Successfully populated your experience and skills.",
+        });
+        setExperiences([
+          {
+            id: Date.now(),
+            title: "Senior Developer",
+            company: "Innovate Inc",
+            description: "• Led migration to microservices\n• Managed a team of 5 engineers",
+            showSuggestions: false
+          },
+          ...experiences
+        ]);
+      }, 1500);
+    }
+  };
+
+  // --- Experience Handlers ---
+  const addExperience = () => {
+    setExperiences([...experiences, { id: Date.now(), title: "", company: "", description: "", showSuggestions: false }]);
+  };
+  const removeExperience = (id: number) => setExperiences(experiences.filter(exp => exp.id !== id));
+  const updateExperience = (id: number, field: string, value: string) => {
+    setExperiences(experiences.map(exp => exp.id === id ? { ...exp, [field]: value } : exp));
+  };
+  const toggleSuggestions = (id: number) => {
+    setExperiences(experiences.map(exp => exp.id === id ? { ...exp, showSuggestions: !exp.showSuggestions } : { ...exp, showSuggestions: false }));
+  };
+  const applySuggestion = (id: number, oldText: string, newText: string) => {
+    setExperiences(experiences.map(exp => {
+      if (exp.id === id) return { ...exp, description: exp.description.replace(oldText, newText), showSuggestions: false };
+      return exp;
+    }));
+  };
+
+  // --- Project Handlers ---
+  const addProject = () => setProjects([...projects, { id: Date.now(), title: "", technologies: "", description: "" }]);
+  const removeProject = (id: number) => setProjects(projects.filter(p => p.id !== id));
+  const updateProject = (id: number, field: string, value: string) => {
+    setProjects(projects.map(p => p.id === id ? { ...p, [field]: value } : p));
+  };
+
+  // --- Education Handlers ---
+  const addEducation = () => setEducation([...education, { id: Date.now(), school: "", degree: "", year: "" }]);
+  const removeEducation = (id: number) => setEducation(education.filter(e => e.id !== id));
+  const updateEducation = (id: number, field: string, value: string) => {
+    setEducation(education.map(e => e.id === id ? { ...e, [field]: value } : e));
+  };
+
+  const handleExport = () => {
+    toast({
+      title: "Exporting Resume",
+      description: "Generating your ATS-optimized PDF...",
+    });
   };
 
   return (
@@ -35,7 +133,7 @@ export default function BuilderPage() {
               <span className="w-8 h-px bg-border"></span>
               <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Content</span>
               <span className="w-8 h-px bg-border"></span>
-              <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Review</span>
+              <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Export</span>
             </div>
           </div>
 
@@ -83,7 +181,6 @@ export default function BuilderPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {/* Will be populated after analysis */}
                       <div className="h-6 w-16 bg-muted rounded animate-pulse"></div>
                       <div className="h-6 w-20 bg-muted rounded animate-pulse"></div>
                       <div className="h-6 w-24 bg-muted rounded animate-pulse"></div>
@@ -94,8 +191,8 @@ export default function BuilderPage() {
             </div>
           )}
 
-          {step === 2 && (
-             <div className="grid lg:grid-cols-3 gap-8">
+          {step >= 2 && (
+             <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                <div className="lg:col-span-2 space-y-6">
                  <Tabs defaultValue="experience" className="w-full">
                     <TabsList className="grid w-full grid-cols-4 bg-background/50 border border-white/5">
@@ -105,6 +202,45 @@ export default function BuilderPage() {
                       <TabsTrigger value="education">Education</TabsTrigger>
                     </TabsList>
                     
+                    {/* Info Tab */}
+                    <TabsContent value="info" className="mt-6 space-y-6">
+                      <Card className="glass-panel border-white/10">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Personal Information</CardTitle>
+                          <CardDescription>Basic contact details for the header of your resume.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          <div className="grid md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Full Name</Label>
+                              <Input defaultValue="John Doe" className="bg-background/50" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Email</Label>
+                              <Input defaultValue="john@example.com" type="email" className="bg-background/50" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Phone</Label>
+                              <Input defaultValue="(555) 123-4567" className="bg-background/50" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Location</Label>
+                              <Input defaultValue="San Francisco, CA" className="bg-background/50" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>LinkedIn</Label>
+                              <Input defaultValue="linkedin.com/in/johndoe" className="bg-background/50" />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>GitHub / Portfolio</Label>
+                              <Input defaultValue="github.com/johndoe" className="bg-background/50" />
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Experience Tab */}
                     <TabsContent value="experience" className="mt-6 space-y-6">
                       <Card className="glass-panel border-white/10">
                         <CardHeader className="flex flex-row items-center justify-between">
@@ -112,54 +248,224 @@ export default function BuilderPage() {
                             <CardTitle className="text-lg">Work Experience</CardTitle>
                             <CardDescription>Add your roles and let AI optimize the bullet points.</CardDescription>
                           </div>
-                          <Button variant="outline" size="sm" className="gap-2">
-                            <Upload className="w-4 h-4" /> Import from PDF
-                          </Button>
+                          <div>
+                            <input 
+                              type="file" 
+                              accept=".pdf,.docx" 
+                              className="hidden" 
+                              ref={fileInputRef}
+                              onChange={handleFileUpload}
+                            />
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="gap-2"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              <Upload className="w-4 h-4" /> Import from PDF
+                            </Button>
+                          </div>
                         </CardHeader>
                         <CardContent className="space-y-6">
-                          <div className="space-y-4 p-4 rounded-xl bg-background/50 border border-white/5 relative group">
-                            <div className="grid md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Job Title</Label>
-                                <Input defaultValue="Software Engineer" className="bg-background/50" />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Company</Label>
-                                <Input defaultValue="Tech Corp" className="bg-background/50" />
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <Label>Description & Achievements</Label>
-                                <Button variant="ghost" size="sm" className="h-7 text-xs text-primary gap-1">
-                                  <Sparkles className="w-3 h-3" /> Optimize with AI
+                          
+                          {experiences.map((exp) => (
+                            <div key={exp.id} className="space-y-4 p-4 rounded-xl bg-background/50 border border-white/5 relative group transition-all">
+                              <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removeExperience(exp.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
-                              <Textarea 
-                                className="min-h-[120px] font-mono text-sm leading-relaxed"
-                                defaultValue={"• Developed a web application using React and Node.js\n• Improved database queries\n• Worked with team to deliver features"}
-                              />
-                            </div>
-                            
-                            {/* AI Suggestion Overlay Mockup */}
-                            <div className="absolute -right-4 top-20 w-80 p-4 rounded-xl border border-primary/30 bg-primary/5 backdrop-blur-xl shadow-2xl hidden group-hover:block z-10 animate-in fade-in slide-in-from-right-4">
-                              <div className="flex items-center gap-2 mb-2 text-primary font-medium text-sm">
-                                <Sparkles className="w-4 h-4" /> AI Suggestions
-                              </div>
-                              <div className="space-y-3">
-                                <div className="text-xs p-2 rounded bg-background border border-primary/20 text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-                                  <span className="text-red-400 line-through mr-1">Developed a web app</span>
-                                  <span className="text-green-400">Architected a scalable full-stack application using React and Node.js, serving 10k+ monthly users</span>
+
+                              <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Job Title</Label>
+                                  <Input 
+                                    value={exp.title} 
+                                    onChange={(e) => updateExperience(exp.id, 'title', e.target.value)}
+                                    placeholder="e.g. Software Engineer"
+                                    className="bg-background/50" 
+                                  />
                                 </div>
-                                <div className="text-xs p-2 rounded bg-background border border-primary/20 text-muted-foreground hover:text-foreground cursor-pointer transition-colors">
-                                  <span className="text-red-400 line-through mr-1">Improved database queries</span>
-                                  <span className="text-green-400">Optimized complex PostgreSQL queries, reducing API latency by 40%</span>
+                                <div className="space-y-2">
+                                  <Label>Company</Label>
+                                  <Input 
+                                    value={exp.company} 
+                                    onChange={(e) => updateExperience(exp.id, 'company', e.target.value)}
+                                    placeholder="e.g. Tech Corp"
+                                    className="bg-background/50" 
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                  <Label>Description & Achievements</Label>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className={`h-7 text-xs gap-1 transition-colors ${exp.showSuggestions ? 'bg-primary/20 text-primary' : 'text-primary'}`}
+                                    onClick={() => toggleSuggestions(exp.id)}
+                                  >
+                                    <Sparkles className="w-3 h-3" /> Optimize with AI
+                                  </Button>
+                                </div>
+                                <Textarea 
+                                  className="min-h-[120px] font-mono text-sm leading-relaxed"
+                                  value={exp.description}
+                                  onChange={(e) => updateExperience(exp.id, 'description', e.target.value)}
+                                  placeholder="• Describe your responsibilities and achievements..."
+                                />
+                              </div>
+                              
+                              {exp.showSuggestions && (
+                                <div className="p-4 mt-2 rounded-xl border border-primary/30 bg-primary/5 shadow-inner animate-in fade-in zoom-in-95">
+                                  <div className="flex items-center gap-2 mb-3 text-primary font-medium text-sm">
+                                    <Sparkles className="w-4 h-4" /> Suggested Improvements
+                                  </div>
+                                  <div className="space-y-3">
+                                    <div 
+                                      className="text-xs p-3 rounded-lg bg-background/80 border border-primary/20 cursor-pointer hover:border-primary/50 transition-colors"
+                                      onClick={() => applySuggestion(exp.id, "Developed a web application", "Architected a scalable full-stack application using React and Node.js, serving 10k+ monthly users")}
+                                    >
+                                      <p className="text-muted-foreground mb-1">Click to apply this rewrite:</p>
+                                      <span className="text-red-400 line-through mr-2">Developed a web app</span>
+                                      <br/>
+                                      <span className="text-green-400">Architected a scalable full-stack application using React and Node.js, serving 10k+ monthly users</span>
+                                    </div>
+                                    <div 
+                                      className="text-xs p-3 rounded-lg bg-background/80 border border-primary/20 cursor-pointer hover:border-primary/50 transition-colors"
+                                      onClick={() => applySuggestion(exp.id, "Improved database queries", "Optimized complex PostgreSQL queries, reducing API latency by 40%")}
+                                    >
+                                      <span className="text-red-400 line-through mr-2">Improved database queries</span>
+                                      <br/>
+                                      <span className="text-green-400">Optimized complex PostgreSQL queries, reducing API latency by 40%</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+
+                          <Button 
+                            variant="outline" 
+                            className="w-full border-dashed gap-2"
+                            onClick={addExperience}
+                          >
+                            <Plus className="w-4 h-4" /> Add Experience
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+
+                    {/* Projects Tab */}
+                    <TabsContent value="projects" className="mt-6 space-y-6">
+                       <Card className="glass-panel border-white/10">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Projects</CardTitle>
+                          <CardDescription>Showcase your portfolio pieces relevant to the job.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {projects.map((proj) => (
+                            <div key={proj.id} className="space-y-4 p-4 rounded-xl bg-background/50 border border-white/5 relative group transition-all">
+                              <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removeProject(proj.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Project Title</Label>
+                                  <Input 
+                                    value={proj.title} 
+                                    onChange={(e) => updateProject(proj.id, 'title', e.target.value)}
+                                    className="bg-background/50" 
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Technologies Used</Label>
+                                  <Input 
+                                    value={proj.technologies} 
+                                    onChange={(e) => updateProject(proj.id, 'technologies', e.target.value)}
+                                    className="bg-background/50" 
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Description</Label>
+                                <Textarea 
+                                  className="min-h-[80px] font-mono text-sm leading-relaxed"
+                                  value={proj.description}
+                                  onChange={(e) => updateProject(proj.id, 'description', e.target.value)}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                          <Button variant="outline" className="w-full border-dashed gap-2" onClick={addProject}>
+                            <Plus className="w-4 h-4" /> Add Project
+                          </Button>
+                        </CardContent>
+                       </Card>
+                    </TabsContent>
+
+                    {/* Education Tab */}
+                    <TabsContent value="education" className="mt-6 space-y-6">
+                      <Card className="glass-panel border-white/10">
+                        <CardHeader>
+                          <CardTitle className="text-lg">Education</CardTitle>
+                          <CardDescription>List your degrees and certifications.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-6">
+                          {education.map((edu) => (
+                            <div key={edu.id} className="space-y-4 p-4 rounded-xl bg-background/50 border border-white/5 relative group transition-all">
+                              <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                  onClick={() => removeEducation(edu.id)}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <div className="grid md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>School / University</Label>
+                                  <Input 
+                                    value={edu.school} 
+                                    onChange={(e) => updateEducation(edu.id, 'school', e.target.value)}
+                                    className="bg-background/50" 
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Degree / Certificate</Label>
+                                  <Input 
+                                    value={edu.degree} 
+                                    onChange={(e) => updateEducation(edu.id, 'degree', e.target.value)}
+                                    className="bg-background/50" 
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Year / Timeline</Label>
+                                  <Input 
+                                    value={edu.year} 
+                                    onChange={(e) => updateEducation(edu.id, 'year', e.target.value)}
+                                    className="bg-background/50" 
+                                  />
                                 </div>
                               </div>
                             </div>
-                          </div>
-                          <Button variant="outline" className="w-full border-dashed">
-                            + Add Experience
+                          ))}
+                          <Button variant="outline" className="w-full border-dashed gap-2" onClick={addEducation}>
+                            <Plus className="w-4 h-4" /> Add Education
                           </Button>
                         </CardContent>
                       </Card>
@@ -208,6 +514,13 @@ export default function BuilderPage() {
                           </div>
                         </div>
                      </div>
+
+                     <div className="pt-4 border-t border-white/10">
+                        <Button className="w-full gap-2" onClick={handleExport}>
+                          <Download className="w-4 h-4" />
+                          Export PDF
+                        </Button>
+                     </div>
                    </CardContent>
                  </Card>
                </div>
@@ -219,7 +532,6 @@ export default function BuilderPage() {
   );
 }
 
-// Keep simple icons locally
 function TargetIcon(props: React.SVGProps<SVGSVGElement>) {
   return <svg {...props} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
 }

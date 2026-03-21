@@ -2,19 +2,47 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, BarChart, ChevronRight, AlertTriangle, CheckCircle2, Zap } from "lucide-react";
-import { useState } from "react";
+import { Upload, FileText, BarChart, ChevronRight, AlertTriangle, CheckCircle2, Zap, Check } from "lucide-react";
+import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ScreenerPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [results, setResults] = useState(false);
+  const [fileName, setFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setFileName(file.name);
+      toast({
+        title: "Resume Uploaded",
+        description: `${file.name} has been successfully loaded.`,
+      });
+    }
+  };
 
   const handleAnalyze = () => {
+    if (!fileName) {
+      toast({
+        title: "Missing Resume",
+        description: "Please upload your resume before analyzing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setAnalyzing(true);
     setTimeout(() => {
       setAnalyzing(false);
       setResults(true);
+      toast({
+        title: "Analysis Complete",
+        description: "Your ATS score has been calculated.",
+      });
     }, 2500);
   };
 
@@ -35,37 +63,51 @@ export default function ScreenerPage() {
           {!results ? (
             <div className="grid md:grid-cols-2 gap-8">
               {/* Upload Resume */}
-              <Card className="glass-panel border-white/10">
+              <Card className="glass-panel border-white/10 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary" />
                     Your Resume
                   </CardTitle>
+                  <CardDescription>Upload your current resume in PDF or DOCX format</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="border-2 border-dashed border-white/10 rounded-xl p-12 flex flex-col items-center justify-center text-center hover:bg-white/5 hover:border-primary/50 transition-colors cursor-pointer group">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                      <Upload className="w-8 h-8 text-primary" />
+                <CardContent className="flex-1 flex flex-col justify-center">
+                  <input 
+                    type="file" 
+                    accept=".pdf,.docx" 
+                    className="hidden" 
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                  />
+                  <div 
+                    className={`border-2 border-dashed ${fileName ? 'border-primary/50 bg-primary/5' : 'border-white/10 hover:bg-white/5 hover:border-primary/50'} rounded-xl p-12 flex flex-col items-center justify-center text-center transition-colors cursor-pointer group h-full`}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <div className={`w-16 h-16 rounded-full ${fileName ? 'bg-primary/20' : 'bg-primary/10'} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
+                      {fileName ? <Check className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-primary" />}
                     </div>
-                    <h3 className="font-medium text-lg mb-1">Upload Resume</h3>
-                    <p className="text-sm text-muted-foreground mb-4">PDF or DOCX (Max 5MB)</p>
-                    <Button variant="secondary" size="sm">Browse Files</Button>
+                    <h3 className="font-medium text-lg mb-1">{fileName ? "File Uploaded" : "Upload Resume"}</h3>
+                    <p className="text-sm text-muted-foreground mb-4 break-all">{fileName || "PDF or DOCX (Max 5MB)"}</p>
+                    <Button variant={fileName ? "default" : "secondary"} size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
+                      {fileName ? "Change File" : "Browse Files"}
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Paste JD */}
-              <Card className="glass-panel border-white/10">
+              <Card className="glass-panel border-white/10 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart className="w-5 h-5 text-accent" />
                     Job Description
                   </CardTitle>
+                  <CardDescription>Paste the target job description here</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="flex-1 space-y-4">
                   <Textarea 
                     placeholder="Paste the job description here..." 
-                    className="min-h-[250px] font-mono text-sm bg-background/50 border-white/10"
+                    className="h-full min-h-[250px] font-mono text-sm bg-background/50 border-white/10 resize-none"
                   />
                 </CardContent>
                 <CardFooter>
@@ -177,7 +219,7 @@ export default function ScreenerPage() {
 
               {/* Back to start */}
               <div className="flex justify-center pt-8">
-                <Button variant="outline" onClick={() => setResults(false)}>
+                <Button variant="outline" onClick={() => { setResults(false); setFileName(null); }}>
                   Analyze Another Resume
                 </Button>
               </div>
