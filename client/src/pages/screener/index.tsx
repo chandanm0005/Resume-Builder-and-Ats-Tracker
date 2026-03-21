@@ -2,7 +2,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, BarChart, ChevronRight, AlertTriangle, CheckCircle2, Zap, Check } from "lucide-react";
+import { Upload, FileText, BarChart, ChevronRight, AlertTriangle, CheckCircle2, Zap, Check, ExternalLink } from "lucide-react";
 import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
@@ -172,7 +172,7 @@ export default function ScreenerPage() {
                 <Card className="glass-panel border-white/10 bg-gradient-to-br from-background to-red-950/10">
                   <CardHeader>
                     <CardTitle className="text-red-400 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" /> Missing Keywords & Skills
+                      <AlertTriangle className="w-5 h-5" /> Missing Keywords & Learning Resources
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -183,18 +183,49 @@ export default function ScreenerPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="p-4 rounded-xl bg-background/50 border border-white/5 space-y-3">
-                      <h4 className="font-medium text-sm">Suggested Actions:</h4>
-                      <ul className="text-sm text-muted-foreground space-y-2">
-                        <li className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                          Consider adding a project demonstrating containerization experience.
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-1.5 shrink-0" />
-                          If you have AWS experience, explicitly mention services like EC2, S3, or Lambda.
-                        </li>
-                      </ul>
+                    <div className="p-4 rounded-xl bg-background/50 border border-white/5 space-y-4">
+                      <h4 className="font-medium text-sm">Suggested Actions & Resources:</h4>
+                      
+                      <div className="space-y-3">
+                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm text-primary">Docker & Containerization</span>
+                            <a href="https://docs.docker.com/get-started/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
+                              Official Docs <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Consider building a small web app and containerizing it with Docker to add to your projects section.</p>
+                          <div className="flex gap-2 mt-2">
+                            <a href="https://www.freecodecamp.org/news/docker-crash-course-for-absolute-beginners/" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">Docker for Beginners (FreeCodeCamp)</a>
+                          </div>
+                        </div>
+
+                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm text-primary">AWS Cloud Services</span>
+                            <a href="https://aws.amazon.com/training/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
+                              AWS Training <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Learn basics of EC2, S3, and RDS. Deploying a simple app on AWS can significantly boost your score.</p>
+                          <div className="flex gap-2 mt-2">
+                            <a href="https://aws.amazon.com/training/digital/aws-cloud-practitioner-essentials/" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">AWS Cloud Practitioner (Course)</a>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="font-medium text-sm text-primary">Kubernetes (K8s)</span>
+                            <a href="https://kubernetes.io/docs/tutorials/kubernetes-basics/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
+                              K8s Tutorials <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Once you understand Docker, learning to orchestrate those containers with K8s is a highly sought-after skill.</p>
+                          <div className="flex gap-2 mt-2">
+                            <a href="https://www.edx.org/course/introduction-to-kubernetes" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">Intro to K8s (edX)</a>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
