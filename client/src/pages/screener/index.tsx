@@ -196,7 +196,7 @@ export default function ScreenerPage() {
                           </div>
                           <p className="text-xs text-muted-foreground">Consider building a small web app and containerizing it with Docker to add to your projects section.</p>
                           <div className="flex gap-2 mt-2">
-                            <a href="https://www.freecodecamp.org/news/docker-crash-course-for-absolute-beginners/" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">Docker for Beginners (FreeCodeCamp)</a>
+                            <a href="https://www.w3schools.com/docker/index.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools Docker Tutorial</a>
                           </div>
                         </div>
 
@@ -209,7 +209,7 @@ export default function ScreenerPage() {
                           </div>
                           <p className="text-xs text-muted-foreground">Learn basics of EC2, S3, and RDS. Deploying a simple app on AWS can significantly boost your score.</p>
                           <div className="flex gap-2 mt-2">
-                            <a href="https://aws.amazon.com/training/digital/aws-cloud-practitioner-essentials/" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">AWS Cloud Practitioner (Course)</a>
+                            <a href="https://www.w3schools.com/aws/index.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools AWS Tutorial</a>
                           </div>
                         </div>
                         
@@ -222,7 +222,7 @@ export default function ScreenerPage() {
                           </div>
                           <p className="text-xs text-muted-foreground">Once you understand Docker, learning to orchestrate those containers with K8s is a highly sought-after skill.</p>
                           <div className="flex gap-2 mt-2">
-                            <a href="https://www.edx.org/course/introduction-to-kubernetes" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">Intro to K8s (edX)</a>
+                            <a href="https://www.w3schools.com/docker/docker_kubernetes.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools K8s Intro</a>
                           </div>
                         </div>
                       </div>
@@ -238,7 +238,7 @@ export default function ScreenerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {['Python', 'Flask', 'REST APIs', 'PostgreSQL', 'Git', 'Agile', 'Backend Development'].map(skill => (
+                      {['Python', 'Git', 'Agile'].map(skill => (
                         <div key={skill} className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-300 text-sm">
                           {skill}
                         </div>
