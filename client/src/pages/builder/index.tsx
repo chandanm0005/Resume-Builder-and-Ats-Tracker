@@ -54,6 +54,7 @@ export default function BuilderPage() {
   const [step, setStep] = useState(1);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('modern');
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -120,19 +121,59 @@ export default function BuilderPage() {
   const removeEducation = (id: number) => setEducation(education.filter(e => e.id !== id));
   const updateEducation = (id: number, field: string, value: string) => setEducation(education.map(e => e.id === id ? { ...e, [field]: value } : e));
 
+  const handlePreview = () => {
+    setShowPreview(true);
+  };
+
   const handleExport = () => {
     toast({
       title: "Exporting Resume",
-      description: `Generating your ATS-optimized PDF using the ${selectedTemplate} template...`,
+      description: `Downloading your ${templates.find(t => t.id === selectedTemplate)?.name} PDF...`,
     });
+    setTimeout(() => {
+      setShowPreview(false);
+      setStep(1); // Reset back to start or whatever makes sense
+    }, 2000);
   };
 
   const templates = [
-    { id: 'modern', name: 'Modern ATS', desc: 'Clean, robust parsing' },
-    { id: 'minimalist', name: 'Minimalist', desc: 'Simple text focus' },
-    { id: 'professional', name: 'Professional', desc: 'Traditional layout' },
-    { id: 'creative', name: 'Creative', desc: 'Bold typography' }
+    { id: 'modern', name: 'Modern ATS', desc: 'Clean, robust parsing', img: '/images/template-modern.png' },
+    { id: 'minimalist', name: 'Minimalist', desc: 'Simple text focus', img: '/images/template-minimalist.png' },
+    { id: 'professional', name: 'Professional', desc: 'Traditional layout', img: '/images/template-professional.png' },
+    { id: 'creative', name: 'Creative', desc: 'Bold typography', img: '/images/template-creative.png' }
   ];
+
+  if (showPreview) {
+    return (
+      <div className="min-h-screen flex flex-col pb-20 bg-background">
+        <Navbar />
+        <main className="flex-1 container mx-auto px-4 py-8 flex flex-col items-center">
+          <div className="max-w-4xl w-full">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h1 className="text-3xl font-bold font-mono tracking-tight">Final Preview</h1>
+                <p className="text-muted-foreground mt-2">Here is how your generated resume looks.</p>
+              </div>
+              <div className="flex gap-4">
+                <Button variant="outline" onClick={() => setShowPreview(false)}>Edit Details</Button>
+                <Button className="gap-2" onClick={handleExport}>
+                  <Download className="w-4 h-4" /> Download PDF
+                </Button>
+              </div>
+            </div>
+
+            <Card className="glass-panel border-white/10 p-8 flex flex-col items-center justify-center min-h-[600px] relative overflow-hidden bg-white/5">
+                <img 
+                  src={templates.find(t => t.id === selectedTemplate)?.img} 
+                  alt="Resume Preview" 
+                  className="max-h-[800px] w-auto object-contain rounded shadow-2xl border border-white/20"
+                />
+            </Card>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col pb-20">
@@ -143,18 +184,57 @@ export default function BuilderPage() {
           
           <div className="flex items-center justify-between mb-8">
             <h1 className="text-3xl font-bold font-mono tracking-tight">Resume Builder</h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Job Description & Setup</span>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground hidden md:flex">
+              <span className={step >= 1 ? "text-primary font-medium" : ""}>1. Setup & Template</span>
               <span className="w-8 h-px bg-border"></span>
-              <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Content & AI Edit</span>
+              <span className={step >= 2 ? "text-primary font-medium" : ""}>2. Content & AI</span>
               <span className="w-8 h-px bg-border"></span>
-              <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Export</span>
+              <span className={step >= 3 ? "text-primary font-medium" : ""}>3. Preview</span>
             </div>
           </div>
 
           {step === 1 && (
-            <div className="grid md:grid-cols-3 gap-8">
-              <Card className="glass-panel border-white/10 md:col-span-2">
+            <div className="grid lg:grid-cols-3 gap-8">
+              <Card className="glass-panel border-white/10 lg:col-span-1 h-fit">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <LayoutTemplate className="w-4 h-4 text-primary" /> Select Template
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Current Template Preview Image */}
+                  <div className="aspect-[3/4] w-full rounded-xl overflow-hidden border border-white/10 bg-white/5 relative">
+                     <img 
+                       src={templates.find(t => t.id === selectedTemplate)?.img} 
+                       alt="Template Preview" 
+                       className="w-full h-full object-cover transition-opacity duration-300"
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-4">
+                       <span className="font-medium text-sm drop-shadow-md">
+                         {templates.find(t => t.id === selectedTemplate)?.name} Preview
+                       </span>
+                     </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {templates.map(t => (
+                      <div 
+                        key={t.id}
+                        onClick={() => setSelectedTemplate(t.id)}
+                        className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
+                          selectedTemplate === t.id 
+                            ? 'border-primary bg-primary/20 text-primary' 
+                            : 'border-white/10 hover:border-white/30 bg-background/50 text-muted-foreground'
+                        }`}
+                      >
+                        <span className="font-medium text-xs block">{t.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-panel border-white/10 lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <TargetIcon className="w-5 h-5 text-primary" />
@@ -170,10 +250,10 @@ export default function BuilderPage() {
                     <Textarea 
                       id="jd" 
                       placeholder="Paste the full job description here..." 
-                      className="min-h-[350px] font-mono text-sm bg-background/50 border-white/10"
+                      className="min-h-[400px] font-mono text-sm bg-background/50 border-white/10"
                     />
                   </div>
-                  <Button className="w-full gap-2" onClick={simulateAnalysis} disabled={isAnalyzing}>
+                  <Button className="w-full gap-2 h-12" onClick={simulateAnalysis} disabled={isAnalyzing}>
                     {isAnalyzing ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -182,63 +262,19 @@ export default function BuilderPage() {
                     ) : (
                       <>
                         <Sparkles className="w-4 h-4" />
-                        Start Building with AI
+                        Start Building Resume
                       </>
                     )}
                   </Button>
                 </CardContent>
               </Card>
-
-              <div className="space-y-6">
-                <Card className="glass-panel border-white/10">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <LayoutTemplate className="w-4 h-4 text-primary" /> Select Template
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 gap-3">
-                      {templates.map(t => (
-                        <div 
-                          key={t.id}
-                          onClick={() => setSelectedTemplate(t.id)}
-                          className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                            selectedTemplate === t.id 
-                              ? 'border-primary bg-primary/10' 
-                              : 'border-white/10 hover:border-white/30 bg-background/50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm">{t.name}</span>
-                            {selectedTemplate === t.id && <CheckCircle2 className="w-4 h-4 text-primary" />}
-                          </div>
-                          <div className="text-xs text-muted-foreground">{t.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-panel border-white/10 opacity-50 grayscale pointer-events-none transition-all duration-500">
-                  <CardHeader>
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Extracted Skills</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      <div className="h-6 w-16 bg-muted rounded animate-pulse"></div>
-                      <div className="h-6 w-20 bg-muted rounded animate-pulse"></div>
-                      <div className="h-6 w-24 bg-muted rounded animate-pulse"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
             </div>
           )}
 
           {step >= 2 && (
              <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                <div className="lg:col-span-2 space-y-6">
-                 <Tabs defaultValue="experience" className="w-full">
+                 <Tabs defaultValue="info" className="w-full">
                     <TabsList className="grid w-full grid-cols-4 bg-background/50 border border-white/5">
                       <TabsTrigger value="info">Info</TabsTrigger>
                       <TabsTrigger value="experience">Experience</TabsTrigger>
@@ -531,9 +567,9 @@ export default function BuilderPage() {
                      </div>
 
                      <div className="pt-4 border-t border-white/10">
-                        <Button className="w-full gap-2" onClick={handleExport}>
+                        <Button className="w-full gap-2" onClick={handlePreview}>
                           <Download className="w-4 h-4" />
-                          Export {templates.find(t => t.id === selectedTemplate)?.name} PDF
+                          Preview & Export PDF
                         </Button>
                      </div>
                    </CardContent>

@@ -143,7 +143,7 @@ export default function ScreenerPage() {
                   <div className="relative z-10">
                     <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">Overall Match Score</h3>
                     <div className="text-7xl font-bold font-mono tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-white/50 mb-4">
-                      74<span className="text-4xl text-white/40">%</span>
+                      {Math.floor(Math.random() * (92 - 60 + 1) + 60)}<span className="text-4xl text-white/40">%</span>
                     </div>
                     <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-sm font-medium border border-yellow-500/20">
                       <AlertTriangle className="w-4 h-4" />
@@ -177,7 +177,10 @@ export default function ScreenerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {['Docker', 'Kubernetes', 'CI/CD', 'AWS', 'Microservices'].map(skill => (
+                      {['Docker', 'Kubernetes', 'CI/CD', 'AWS', 'Microservices']
+                        .sort(() => 0.5 - Math.random()) // Randomize for mock data
+                        .slice(0, 3)                     // Pick random 3
+                        .map(skill => (
                         <div key={skill} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2">
                           {skill}
                         </div>
@@ -238,7 +241,10 @@ export default function ScreenerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {['Python', 'Git', 'Agile'].map(skill => (
+                      {['Python', 'Git', 'Agile', 'React', 'Node.js', 'SQL', 'TypeScript']
+                        .sort(() => 0.5 - Math.random())
+                        .slice(0, 4)
+                        .map(skill => (
                         <div key={skill} className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-300 text-sm">
                           {skill}
                         </div>
