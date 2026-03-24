@@ -25,6 +25,28 @@ export default function ScreenerPage() {
     }
   };
 
+  const [jdText, setJdText] = useState("");
+  const [extractedKeywords, setExtractedKeywords] = useState({ matched: [] as string[], missing: [] as string[] });
+
+  const techDatabase = [
+    // Languages
+    "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "PHP", "Swift", "Kotlin", "HTML", "CSS", "SQL", "NoSQL", "R", "Perl", "MATLAB", "Dart", "Scala", "Objective-C",
+    // Frontend
+    "React", "Vue", "Angular", "Next.js", "Nuxt", "Svelte", "Redux", "Zustand", "Tailwind", "Bootstrap", "Material UI", "Chakra UI", "Webpack", "Vite", "Babel", "Jest", "Cypress", "HTML5", "CSS3", "SASS", "LESS",
+    // Backend
+    "Node.js", "Express", "Django", "Flask", "Spring", "Spring Boot", "ASP.NET", "Laravel", "Ruby on Rails", "FastAPI", "NestJS", "GraphQL", "REST", "gRPC", "Microservices",
+    // Databases
+    "MongoDB", "PostgreSQL", "MySQL", "Redis", "Cassandra", "Elasticsearch", "MariaDB", "Oracle", "DynamoDB", "Firebase", "Supabase", "Prisma",
+    // DevOps & Cloud
+    "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Google Cloud", "CI/CD", "Git", "GitHub", "GitLab", "Bitbucket", "Jenkins", "Travis CI", "CircleCI", "Terraform", "Ansible", "Linux", "Unix", "Bash", "Shell", "Nginx", "Apache",
+    // Methodologies
+    "Agile", "Scrum", "Kanban", "JIRA", "Confluence", "TDD", "BDD",
+    // Data & AI
+    "Machine Learning", "AI", "NLP", "Data Science", "Pandas", "NumPy", "TensorFlow", "PyTorch", "Keras", "Scikit-Learn", "Computer Vision",
+    // Tools / Msg
+    "Kafka", "RabbitMQ", "Spark", "Hadoop", "Figma", "Sketch", "Adobe XD", "Postman", "Swagger"
+  ];
+
   const handleAnalyze = () => {
     if (!fileName) {
       toast({
@@ -35,13 +57,64 @@ export default function ScreenerPage() {
       return;
     }
 
+    if (!jdText.trim()) {
+      toast({
+        title: "Missing Job Description",
+        description: "Please paste a job description before analyzing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setAnalyzing(true);
+    
     setTimeout(() => {
+      // 1. Parse JD for required skills
+      const jdUpper = jdText.toUpperCase();
+      // Extract all skills from our database that appear in the JD
+      const requiredSkills = techDatabase.filter(tech => jdUpper.includes(tech.toUpperCase()));
+      
+      // If the JD is very brief or doesn't mention specific tech, add some standard ones based on context
+      if (requiredSkills.length < 5) {
+         const fallbackTechs = ["React", "Node.js", "JavaScript", "TypeScript", "Git", "Agile", "SQL", "AWS", "Docker"];
+         for (const tech of fallbackTechs) {
+           if (!requiredSkills.includes(tech)) requiredSkills.push(tech);
+         }
+      }
+
+      // 2. Simulate Resume parsing (overlap with JD)
+      // We will pretend the resume matches roughly 60-80% of the required skills
+      const matched: string[] = [];
+      const missing: string[] = [];
+      
+      requiredSkills.forEach(tech => {
+        // 70% chance the resume has the required skill
+        if (Math.random() > 0.3) {
+          matched.push(tech);
+        } else {
+          missing.push(tech);
+        }
+      });
+
+      // Add a few "extra" skills the resume has that weren't strictly in the JD
+      const extraSkillsCount = Math.floor(Math.random() * 4) + 2;
+      const allOtherSkills = techDatabase.filter(t => !requiredSkills.includes(t));
+      const shuffledOthers = allOtherSkills.sort(() => 0.5 - Math.random());
+      const extraResumeSkills = shuffledOthers.slice(0, extraSkillsCount);
+      
+      // Combine for display if needed, but usually we just care about matched against JD
+      matched.push(...extraResumeSkills);
+
+      // Ensure at least something in each category to avoid empty UI states
+      if (missing.length === 0 && matched.length > 2) missing.push(matched.shift()!);
+      if (matched.length === 0 && missing.length > 2) matched.push(missing.shift()!);
+
+      setExtractedKeywords({ matched, missing });
       setAnalyzing(false);
       setResults(true);
       toast({
         title: "Analysis Complete",
-        description: "Your ATS score has been calculated.",
+        description: `Analyzed against ${jdText.split(/\s+/).length} words in Job Description.`,
       });
     }, 2500);
   };
@@ -108,6 +181,8 @@ export default function ScreenerPage() {
                   <Textarea 
                     placeholder="Paste the job description here..." 
                     className="h-full min-h-[250px] font-mono text-sm bg-background/50 border-white/10 resize-none"
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
                   />
                 </CardContent>
                 <CardFooter>
@@ -177,10 +252,7 @@ export default function ScreenerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2 mb-6">
-                      {['Docker', 'Kubernetes', 'CI/CD', 'AWS', 'Microservices']
-                        .sort(() => 0.5 - Math.random()) // Randomize for mock data
-                        .slice(0, 3)                     // Pick random 3
-                        .map(skill => (
+                      {extractedKeywords.missing.map(skill => (
                         <div key={skill} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2">
                           {skill}
                         </div>
@@ -241,10 +313,7 @@ export default function ScreenerPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="flex flex-wrap gap-2">
-                      {['Python', 'Git', 'Agile', 'React', 'Node.js', 'SQL', 'TypeScript']
-                        .sort(() => 0.5 - Math.random())
-                        .slice(0, 4)
-                        .map(skill => (
+                      {extractedKeywords.matched.map(skill => (
                         <div key={skill} className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-300 text-sm">
                           {skill}
                         </div>
