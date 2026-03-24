@@ -14,10 +14,23 @@ export default function ScreenerPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setFileName(file.name);
+      
+      // Since we don't have a real backend to parse the PDF, we will mock reading it
+      // by generating some fake text that includes random technologies so the ATS
+      // can "find" something in the resume.
+      const simulatedResumeText = `
+        Software Engineer with 5 years experience.
+        Familiar with ${techDatabase.sort(() => 0.5 - Math.random()).slice(0, 15).join(", ")}.
+        Led team of 10 developers to build scalable applications.
+      `;
+      
+      // Store this mock text so we can use it during analysis
+      (window as any).__mockResumeText = simulatedResumeText;
+
       toast({
         title: "Resume Uploaded",
         description: `${file.name} has been successfully loaded.`,
@@ -82,14 +95,16 @@ export default function ScreenerPage() {
          }
       }
 
-      // 2. Simulate Resume parsing (overlap with JD)
-      // We will pretend the resume matches roughly 60-80% of the required skills
+      // 2. Simulate Resume parsing 
+      // We will pretend we read the uploaded resume and compare it against the required skills
+      const resumeText = ((window as any).__mockResumeText || "").toUpperCase();
       const matched: string[] = [];
       const missing: string[] = [];
       
       requiredSkills.forEach(tech => {
-        // 70% chance the resume has the required skill
-        if (Math.random() > 0.3) {
+        // If the mocked resume text contains the skill, it's a match!
+        // We also add a small random chance for it to miss just to simulate ATS parsing errors
+        if (resumeText.includes(tech.toUpperCase()) || Math.random() > 0.8) {
           matched.push(tech);
         } else {
           missing.push(tech);
