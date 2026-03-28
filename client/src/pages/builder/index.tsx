@@ -494,47 +494,21 @@ export default function BuilderPage() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <LayoutTemplate className="w-4 h-4 text-primary" /> 3. Select Output Template
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
-                    {templates.map(t => (
-                      <div 
-                        key={t.id}
-                        onClick={() => setSelectedTemplate(t.id)}
-                        className={`p-2 rounded-lg border cursor-pointer transition-all text-center group relative overflow-hidden ${
-                          selectedTemplate === t.id 
-                            ? 'border-primary bg-primary/20 text-primary' 
-                            : 'border-white/10 hover:border-white/30 bg-background/50 text-muted-foreground'
-                        }`}
-                      >
-                        <span className="font-medium text-xs block relative z-10">{t.name}</span>
-                        {selectedTemplate === t.id && (
-                           <div className="absolute inset-0 bg-primary/10 animate-pulse" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button className="w-full gap-2 h-12 mt-4" onClick={simulateAnalysis} disabled={isAnalyzing}>
-                    {isAnalyzing ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        Analyzing & Setting up Builder...
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4" />
-                        Start Building Resume
-                      </>
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
+              <div className="lg:col-span-2">
+                <Button className="w-full gap-2 h-14 text-lg font-medium shadow-lg hover:shadow-primary/20 transition-all" onClick={simulateAnalysis} disabled={isAnalyzing}>
+                  {isAnalyzing ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                      Analyzing & Setting up Builder...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Start Building Resume
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           )}
 
@@ -840,6 +814,44 @@ export default function BuilderPage() {
                </div>
 
                <div className="space-y-6">
+                 {/* Template Preview Sidebar */}
+                 <Card className="glass-panel floating-card border-white/10">
+                   <CardHeader className="pb-4">
+                     <CardTitle className="text-sm font-medium flex items-center justify-between">
+                       Template Selection
+                     </CardTitle>
+                   </CardHeader>
+                   <CardContent className="space-y-4">
+                     <div className="aspect-[3/4] w-full rounded-xl overflow-hidden border border-white/10 bg-white/5 relative">
+                        <img 
+                          src={templates.find(t => t.id === selectedTemplate)?.img} 
+                          alt="Template Preview" 
+                          className="w-full h-full object-cover transition-opacity duration-300"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-4">
+                          <span className="font-medium text-sm drop-shadow-md">
+                            {templates.find(t => t.id === selectedTemplate)?.name} Preview
+                          </span>
+                        </div>
+                     </div>
+                     <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                       {templates.map(t => (
+                         <div 
+                           key={t.id}
+                           onClick={() => setSelectedTemplate(t.id)}
+                           className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
+                             selectedTemplate === t.id 
+                               ? 'border-primary bg-primary/20 text-primary' 
+                               : 'border-white/10 hover:border-white/30 bg-background/50 text-muted-foreground'
+                           }`}
+                         >
+                           <span className="font-medium text-[10px] sm:text-xs block truncate" title={t.name}>{t.name}</span>
+                         </div>
+                       ))}
+                     </div>
+                   </CardContent>
+                 </Card>
+
                  {/* JD Context Sidebar */}
                  <Card className="glass-panel floating-card border-white/10 sticky top-24">
                    <CardHeader className="pb-4">
