@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
 import yaml from 'js-yaml';
+import { jsPDF } from 'jspdf';
 
 // Custom Textarea with inline "ghost" suggestions
 function GhostTextarea({ value, onChange, suggestion, placeholder, className, ...props }: any) {
@@ -191,13 +192,91 @@ export default function BuilderPage() {
 
   const handleExport = () => {
     toast({
-      title: "Exporting Resume",
+      title: "Generating PDF",
       description: `Downloading your ${templates.find(t => t.id === selectedTemplate)?.name} PDF...`,
     });
+    
+    // Generate a basic PDF using jsPDF (Frontend only approach)
+    const doc = new jsPDF();
+    let yPos = 20;
+    const margin = 20;
+    
+    // Title/Name
+    doc.setFontSize(24);
+    doc.text(personalInfo.name || "Your Name", margin, yPos);
+    yPos += 10;
+    
+    // Contact Info
+    doc.setFontSize(10);
+    const contactInfo = [
+      personalInfo.email,
+      personalInfo.phone,
+      personalInfo.location,
+      personalInfo.linkedin,
+      personalInfo.github
+    ].filter(Boolean).join(" | ");
+    
+    doc.text(contactInfo, margin, yPos);
+    yPos += 20;
+    
+    // Experience Section
+    if (experiences.some(exp => exp.title || exp.company)) {
+      doc.setFontSize(14);
+      doc.text("Experience", margin, yPos);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos + 2, 190, yPos + 2);
+      yPos += 10;
+      
+      experiences.forEach(exp => {
+        if (exp.title || exp.company) {
+          doc.setFontSize(12);
+          doc.text(`${exp.title}${exp.company ? ` at ${exp.company}` : ''}`, margin, yPos);
+          yPos += 7;
+          
+          if (exp.description) {
+            doc.setFontSize(10);
+            const lines = doc.splitTextToSize(exp.description, 170);
+            doc.text(lines, margin, yPos);
+            yPos += (lines.length * 5) + 5;
+          }
+        }
+      });
+    }
+    
+    // Projects Section
+    if (projects.some(proj => proj.title)) {
+      yPos += 5;
+      if (yPos > 270) { doc.addPage(); yPos = 20; }
+      
+      doc.setFontSize(14);
+      doc.text("Projects", margin, yPos);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos + 2, 190, yPos + 2);
+      yPos += 10;
+      
+      projects.forEach(proj => {
+        if (proj.title) {
+          doc.setFontSize(12);
+          doc.text(proj.title, margin, yPos);
+          yPos += 7;
+          
+          if (proj.description) {
+            doc.setFontSize(10);
+            const lines = doc.splitTextToSize(proj.description, 170);
+            doc.text(lines, margin, yPos);
+            yPos += (lines.length * 5) + 5;
+          }
+        }
+      });
+    }
+    
+    // Save the PDF
+    doc.save(`${(personalInfo.name || "Resume").replace(/\s+/g, '_')}_Resume.pdf`);
+
     setTimeout(() => {
       setShowPreview(false);
       setStep(1); // Reset back to start or whatever makes sense
-    }, 2000);
+    }, 1500);
   };
 
   const templates = [
