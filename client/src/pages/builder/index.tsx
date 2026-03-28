@@ -10,6 +10,8 @@ import { useState, useRef } from "react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
+import yaml from 'js-yaml';
+
 // Custom Textarea with inline "ghost" suggestions
 function GhostTextarea({ value, onChange, suggestion, placeholder, className, ...props }: any) {
   const [dismissed, setDismissed] = useState(false);
@@ -57,6 +59,16 @@ export default function BuilderPage() {
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // State for Info form
+  const [personalInfo, setPersonalInfo] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    location: "",
+    linkedin: "",
+    github: ""
+  });
 
   // Dynamic state (initially empty to allow users to fill their details)
   const [experiences, setExperiences] = useState([
@@ -125,6 +137,58 @@ export default function BuilderPage() {
     setShowPreview(true);
   };
 
+  const handleExportYAML = () => {
+    // Transform our form data into RenderCV YAML format
+    const renderCvData = {
+      cv: {
+        name: personalInfo.name || "Your Name",
+        location: personalInfo.location || "",
+        email: personalInfo.email || "",
+        phone: personalInfo.phone || "",
+        website: personalInfo.github || "", // Mapping github to website for simplicity
+        social_networks: [
+          ...(personalInfo.linkedin ? [{ network: "LinkedIn", username: personalInfo.linkedin.split('/').pop() || personalInfo.linkedin }] : []),
+          ...(personalInfo.github ? [{ network: "GitHub", username: personalInfo.github.split('/').pop() || personalInfo.github }] : [])
+        ],
+        sections: {
+          experience: experiences.filter(exp => exp.title || exp.company).map(exp => ({
+            company: exp.company,
+            position: exp.title,
+            highlights: exp.description ? exp.description.split('\n').filter(line => line.trim().startsWith('•')).map(line => line.replace('•', '').trim()) : []
+          })),
+          projects: projects.filter(proj => proj.title).map(proj => ({
+            name: proj.title,
+            date: "Recent", // Fallback, could add to form later
+            highlights: proj.description ? proj.description.split('\n').filter(line => line.trim().startsWith('•')).map(line => line.replace('•', '').trim()) : []
+          })),
+          education: education.filter(edu => edu.school).map(edu => ({
+            institution: edu.school,
+            area: edu.degree,
+            date: edu.year
+          }))
+        }
+      }
+    };
+
+    // Convert to YAML string
+    const yamlString = yaml.dump(renderCvData, { indent: 2 });
+    
+    // Create a Blob and trigger download
+    const blob = new Blob([yamlString], { type: "text/yaml" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${personalInfo.name.replace(/\s+/g, '_') || "resume"}_RenderCV.yaml`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Exported RenderCV YAML",
+      description: "You can now use this file with the RenderCV command line tool.",
+    });
+  };
+
   const handleExport = () => {
     toast({
       title: "Exporting Resume",
@@ -156,6 +220,9 @@ export default function BuilderPage() {
               </div>
               <div className="flex gap-4">
                 <Button variant="outline" onClick={() => setShowPreview(false)}>Edit Details</Button>
+                <Button variant="secondary" className="gap-2" onClick={handleExportYAML}>
+                  <FileText className="w-4 h-4" /> Export RenderCV YAML
+                </Button>
                 <Button className="gap-2" onClick={handleExport}>
                   <Download className="w-4 h-4" /> Download PDF
                 </Button>
@@ -293,27 +360,58 @@ export default function BuilderPage() {
                           <div className="grid md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                               <Label>Full Name</Label>
-                              <Input placeholder="e.g. John Doe" className="bg-background/50" />
+                              <Input 
+                                placeholder="e.g. John Doe" 
+                                className="bg-background/50" 
+                                value={personalInfo.name}
+                                onChange={(e) => setPersonalInfo({...personalInfo, name: e.target.value})}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>Email</Label>
-                              <Input placeholder="john@example.com" type="email" className="bg-background/50" />
+                              <Input 
+                                placeholder="john@example.com" 
+                                type="email" 
+                                className="bg-background/50" 
+                                value={personalInfo.email}
+                                onChange={(e) => setPersonalInfo({...personalInfo, email: e.target.value})}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>Phone</Label>
-                              <Input placeholder="(555) 123-4567" className="bg-background/50" />
+                              <Input 
+                                placeholder="(555) 123-4567" 
+                                className="bg-background/50" 
+                                value={personalInfo.phone}
+                                onChange={(e) => setPersonalInfo({...personalInfo, phone: e.target.value})}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>Location</Label>
-                              <Input placeholder="San Francisco, CA" className="bg-background/50" />
+                              <Input 
+                                placeholder="San Francisco, CA" 
+                                className="bg-background/50" 
+                                value={personalInfo.location}
+                                onChange={(e) => setPersonalInfo({...personalInfo, location: e.target.value})}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>LinkedIn</Label>
-                              <Input placeholder="linkedin.com/in/johndoe" className="bg-background/50" />
+                              <Input 
+                                placeholder="linkedin.com/in/johndoe" 
+                                className="bg-background/50" 
+                                value={personalInfo.linkedin}
+                                onChange={(e) => setPersonalInfo({...personalInfo, linkedin: e.target.value})}
+                              />
                             </div>
                             <div className="space-y-2">
                               <Label>GitHub / Portfolio</Label>
-                              <Input placeholder="github.com/johndoe" className="bg-background/50" />
+                              <Input 
+                                placeholder="github.com/johndoe" 
+                                className="bg-background/50" 
+                                value={personalInfo.github}
+                                onChange={(e) => setPersonalInfo({...personalInfo, github: e.target.value})}
+                              />
                             </div>
                           </div>
                         </CardContent>
