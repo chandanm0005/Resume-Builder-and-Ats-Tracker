@@ -62,7 +62,7 @@ export default function BuilderPage() {
 
   // State for Info form
   const [personalInfo, setPersonalInfo] = useState({
-    name: "",
+    name: "Chandan",
     email: "",
     phone: "",
     location: "",
@@ -201,10 +201,13 @@ export default function BuilderPage() {
   };
 
   const templates = [
-    { id: 'modern', name: 'Modern ATS', desc: 'Clean, robust parsing', img: '/images/template-modern.png' },
-    { id: 'minimalist', name: 'Minimalist', desc: 'Simple text focus', img: '/images/template-minimalist.png' },
-    { id: 'professional', name: 'Professional', desc: 'Traditional layout', img: '/images/template-professional.png' },
-    { id: 'creative', name: 'Creative', desc: 'Bold typography', img: '/images/template-creative.png' }
+    { id: 'modern', name: 'Classic (SB2nov)', desc: 'Clean, robust parsing', img: '/images/template-1.png' },
+    { id: 'minimalist', name: 'Academic (Classic)', desc: 'Focus on research', img: '/images/template-2.png' },
+    { id: 'professional', name: 'Tech (Modern)', desc: 'For tech companies', img: '/images/template-3.png' },
+    { id: 'creative', name: 'Engineering', desc: 'Detailed layout', img: '/images/template-4.png' },
+    { id: 'bold', name: 'Executive', desc: 'Clear typography', img: '/images/template-5.png' },
+    { id: 'simple', name: 'Standard', desc: 'Simple & safe', img: '/images/template-6.png' },
+    { id: 'clean', name: 'Minimal', desc: 'Lots of whitespace', img: '/images/template-7.png' }
   ];
 
   if (showPreview) {
@@ -283,7 +286,7 @@ export default function BuilderPage() {
                      </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                     {templates.map(t => (
                       <div 
                         key={t.id}
