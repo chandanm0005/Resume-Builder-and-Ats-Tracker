@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sparkles, Upload, FileText, AlertCircle, CheckCircle2, Plus, Trash2, Download, LayoutTemplate } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 
@@ -63,7 +63,7 @@ export default function BuilderPage() {
 
   // State for Info form
   const [personalInfo, setPersonalInfo] = useState({
-    name: "Chandan",
+    name: "",
     email: "",
     phone: "",
     location: "",
@@ -84,9 +84,65 @@ export default function BuilderPage() {
     { id: 1, school: "", degree: "", year: "" }
   ]);
 
+  const [jdText, setJdText] = useState("");
+  
+  // State for JD matching
+  const [requiredSkills, setRequiredSkills] = useState([
+    { name: 'React.js', present: true },
+    { name: 'Node.js', present: true },
+    { name: 'PostgreSQL', present: false },
+    { name: 'Docker', present: false },
+    { name: 'AWS', present: false }
+  ]);
+  
+  // Update presence based on user input
+  useEffect(() => {
+    const allText = [
+      ...experiences.map(e => `${e.title} ${e.description}`),
+      ...projects.map(p => `${p.title} ${p.technologies} ${p.description}`)
+    ].join(' ').toLowerCase();
+
+    setRequiredSkills(skills => 
+      skills.map(skill => ({
+        ...skill,
+        present: allText.includes(skill.name.toLowerCase()) || allText.includes(skill.name.split('.')[0].toLowerCase())
+      }))
+    );
+  }, [experiences, projects]);
+
+  const matchScore = Math.round((requiredSkills.filter(s => s.present).length / Math.max(requiredSkills.length, 1)) * 100) || 0;
+  const missingSkills = requiredSkills.filter(s => !s.present);
+  
+  const dynamicSuggestion = missingSkills.length > 0 
+    ? `• Implemented scalable architecture using ${missingSkills[0].name}, resulting in 30% faster load times.\n• Collaborated with cross-functional teams to integrate ${missingSkills.length > 1 ? missingSkills[1].name : 'new features'} seamlessly.`
+    : "• Led a team of 5 engineers to deliver the project 2 weeks ahead of schedule.\n• Optimized database queries resulting in 40% reduction in API latency.";
+
   const simulateAnalysis = () => {
     setIsAnalyzing(true);
     setTimeout(() => {
+      // Basic mock keyword extraction from JD
+      const text = jdText.toLowerCase();
+      const commonSkills = [
+        'React.js', 'Node.js', 'TypeScript', 'JavaScript', 'Python', 'Java', 'C++', 'Go', 'Ruby',
+        'PostgreSQL', 'MySQL', 'MongoDB', 'Redis', 'Docker', 'AWS', 'Kubernetes', 'GCP', 'Azure',
+        'HTML', 'CSS', 'Tailwind', 'Git', 'Agile', 'Scrum', 'GraphQL', 'REST API', 'Figma', 'Machine Learning', 'AI'
+      ];
+      
+      const newSkills = commonSkills
+        .filter(skill => text.includes(skill.toLowerCase()) || text.includes(skill.split('.')[0].toLowerCase()))
+        .map(skill => ({ name: skill, present: false }));
+      
+      if (newSkills.length > 0) {
+        setRequiredSkills(newSkills);
+      } else if (jdText.trim().length > 0) {
+        // If they pasted something but no known skills found, add some generic ones to show UI
+        setRequiredSkills([
+          { name: 'Communication', present: false },
+          { name: 'Problem Solving', present: false },
+          { name: 'Leadership', present: false }
+        ]);
+      }
+      
       setIsAnalyzing(false);
       setStep(2);
     }, 2000);
@@ -398,6 +454,8 @@ export default function BuilderPage() {
                     <Label htmlFor="jd">Job Description</Label>
                     <Textarea 
                       id="jd" 
+                      value={jdText}
+                      onChange={(e) => setJdText(e.target.value)}
                       placeholder="Paste the full job description here..." 
                       className="min-h-[400px] font-mono text-sm bg-background/50 border-white/10"
                     />
@@ -569,7 +627,7 @@ export default function BuilderPage() {
                                   value={exp.description}
                                   onChange={(val: string) => updateExperience(exp.id, 'description', val)}
                                   placeholder="• Describe your responsibilities and achievements..."
-                                  suggestion="• Architected a scalable full-stack application using React and Node.js&#10;• Optimized complex PostgreSQL queries, reducing API latency by 40%&#10;• Implemented CI/CD pipelines using Docker and AWS"
+                                  suggestion={dynamicSuggestion}
                                 />
                               </div>
                             </div>
@@ -632,7 +690,7 @@ export default function BuilderPage() {
                                   value={proj.description}
                                   onChange={(val: string) => updateProject(proj.id, 'description', val)}
                                   placeholder="• Explain what you built and the impact..."
-                                  suggestion="• Developed an AI-powered resume analyzer using Python and NLP&#10;• Integrated Docker for containerization and AWS for deployment&#10;• Achieved 95% accuracy in keyword extraction using KeyBERT"
+                                  suggestion={dynamicSuggestion}
                                 />
                               </div>
                             </div>
@@ -710,29 +768,31 @@ export default function BuilderPage() {
                    <CardHeader className="pb-4">
                      <CardTitle className="text-sm font-medium flex items-center justify-between">
                        JD Match Status
-                       <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">Score: 68%</span>
+                       <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">Score: {matchScore}%</span>
                      </CardTitle>
-                     <Progress value={68} className="h-1.5 mt-2 bg-secondary" />
+                     <Progress value={matchScore} className="h-1.5 mt-2 bg-secondary" />
                    </CardHeader>
                    <CardContent className="space-y-6">
                      <div>
                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Required Skills</h4>
                        <div className="flex flex-wrap gap-2">
-                         <Badge variant="default" className="bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20">
-                           React.js <CheckCircle2 className="w-3 h-3 ml-1" />
-                         </Badge>
-                         <Badge variant="default" className="bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20">
-                           Node.js <CheckCircle2 className="w-3 h-3 ml-1" />
-                         </Badge>
-                         <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/5">
-                           PostgreSQL <AlertCircle className="w-3 h-3 ml-1" />
-                         </Badge>
-                         <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/5">
-                           Docker <AlertCircle className="w-3 h-3 ml-1" />
-                         </Badge>
-                         <Badge variant="outline" className="border-red-500/30 text-red-400 bg-red-500/5">
-                           AWS <AlertCircle className="w-3 h-3 ml-1" />
-                         </Badge>
+                         {requiredSkills.map(skill => (
+                           <Badge 
+                             key={skill.name}
+                             variant={skill.present ? "default" : "outline"} 
+                             className={
+                               skill.present 
+                                 ? "bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20" 
+                                 : "border-red-500/30 text-red-400 bg-red-500/5"
+                             }
+                           >
+                             {skill.name} 
+                             {skill.present 
+                               ? <CheckCircle2 className="w-3 h-3 ml-1" /> 
+                               : <AlertCircle className="w-3 h-3 ml-1" />
+                             }
+                           </Badge>
+                         ))}
                        </div>
                      </div>
 
@@ -741,7 +801,14 @@ export default function BuilderPage() {
                           <BotIcon className="w-4 h-4 text-primary mt-0.5 shrink-0" />
                           <div className="text-sm text-muted-foreground leading-relaxed">
                             <strong className="text-foreground block mb-1">AI Suggestion:</strong>
-                            You are missing <span className="text-primary">Docker</span> and <span className="text-primary">AWS</span>. Consider adding a project where you containerized and deployed an application.
+                            {missingSkills.length === 0 ? (
+                              <span>Great job! You have matched all the key skills from the job description.</span>
+                            ) : (
+                              <span>
+                                You are missing <span className="text-primary">{missingSkills.slice(0, 2).map(s => s.name).join(" and ")}</span>. 
+                                Consider adding a project or experience bullet point mentioning these to boost your score.
+                              </span>
+                            )}
                           </div>
                         </div>
                      </div>
