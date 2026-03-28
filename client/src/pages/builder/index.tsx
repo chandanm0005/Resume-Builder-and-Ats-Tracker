@@ -262,7 +262,7 @@ export default function BuilderPage() {
 
           {step === 1 && (
             <div className="grid lg:grid-cols-3 gap-8">
-              <Card className="glass-panel border-white/10 lg:col-span-1 h-fit">
+              <Card className="glass-panel floating-card border-white/10 lg:col-span-1 h-fit">
                 <CardHeader>
                   <CardTitle className="text-sm font-medium flex items-center gap-2">
                     <LayoutTemplate className="w-4 h-4 text-primary" /> Select Template
@@ -301,7 +301,7 @@ export default function BuilderPage() {
                 </CardContent>
               </Card>
 
-              <Card className="glass-panel border-white/10 lg:col-span-2">
+              <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <TargetIcon className="w-5 h-5 text-primary" />
@@ -351,7 +351,7 @@ export default function BuilderPage() {
                     
                     {/* Info Tab */}
                     <TabsContent value="info" className="mt-6 space-y-6">
-                      <Card className="glass-panel border-white/10">
+                      <Card className="glass-panel floating-card border-white/10">
                         <CardHeader>
                           <CardTitle className="text-lg">Personal Information</CardTitle>
                           <CardDescription>Basic contact details for the header of your resume.</CardDescription>
@@ -420,7 +420,7 @@ export default function BuilderPage() {
 
                     {/* Experience Tab */}
                     <TabsContent value="experience" className="mt-6 space-y-6">
-                      <Card className="glass-panel border-white/10">
+                      <Card className="glass-panel floating-card border-white/10">
                         <CardHeader className="flex flex-row items-center justify-between">
                           <div>
                             <CardTitle className="text-lg">Work Experience</CardTitle>
@@ -506,7 +506,7 @@ export default function BuilderPage() {
 
                     {/* Projects Tab */}
                     <TabsContent value="projects" className="mt-6 space-y-6">
-                       <Card className="glass-panel border-white/10">
+                       <Card className="glass-panel floating-card border-white/10">
                         <CardHeader>
                           <CardTitle className="text-lg">Projects</CardTitle>
                           <CardDescription>Showcase your portfolio pieces relevant to the job.</CardDescription>
@@ -564,7 +564,7 @@ export default function BuilderPage() {
 
                     {/* Education Tab */}
                     <TabsContent value="education" className="mt-6 space-y-6">
-                      <Card className="glass-panel border-white/10">
+                      <Card className="glass-panel floating-card border-white/10">
                         <CardHeader>
                           <CardTitle className="text-lg">Education</CardTitle>
                           <CardDescription>List your degrees and certifications.</CardDescription>
@@ -624,7 +624,7 @@ export default function BuilderPage() {
 
                <div className="space-y-6">
                  {/* JD Context Sidebar */}
-                 <Card className="glass-panel border-white/10 sticky top-24">
+                 <Card className="glass-panel floating-card border-white/10 sticky top-24">
                    <CardHeader className="pb-4">
                      <CardTitle className="text-sm font-medium flex items-center justify-between">
                        JD Match Status

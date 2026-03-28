@@ -151,7 +151,7 @@ export default function ScreenerPage() {
           {!results ? (
             <div className="grid md:grid-cols-2 gap-8">
               {/* Upload Resume */}
-              <Card className="glass-panel border-white/10 flex flex-col">
+              <Card className="glass-panel floating-card border-white/10 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary" />
@@ -184,7 +184,7 @@ export default function ScreenerPage() {
               </Card>
 
               {/* Paste JD */}
-              <Card className="glass-panel border-white/10 flex flex-col">
+              <Card className="glass-panel floating-card border-white/10 flex flex-col">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <BarChart className="w-5 h-5 text-accent" />
@@ -227,7 +227,7 @@ export default function ScreenerPage() {
               
               {/* Top Score Section */}
               <div className="grid lg:grid-cols-3 gap-6">
-                <Card className="glass-panel border-white/10 lg:col-span-1 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
+                <Card className="glass-panel floating-card border-white/10 lg:col-span-1 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
                   <div className="absolute inset-0 bg-primary/10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent"></div>
                   
                   <div className="relative z-10">
@@ -242,7 +242,7 @@ export default function ScreenerPage() {
                   </div>
                 </Card>
 
-                <Card className="glass-panel border-white/10 lg:col-span-2">
+                <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
                   <CardHeader>
                     <CardTitle>Score Breakdown</CardTitle>
                     <CardDescription>How your resume performs across key ATS metrics.</CardDescription>
@@ -259,7 +259,7 @@ export default function ScreenerPage() {
 
               {/* Actionable Insights */}
               <div className="grid lg:grid-cols-2 gap-8">
-                <Card className="glass-panel border-white/10 bg-gradient-to-br from-background to-red-950/10">
+                <Card className="glass-panel floating-card border-white/10 bg-gradient-to-br from-background to-red-950/10">
                   <CardHeader>
                     <CardTitle className="text-red-400 flex items-center gap-2">
                       <AlertTriangle className="w-5 h-5" /> Missing Keywords & Learning Resources
@@ -320,7 +320,7 @@ export default function ScreenerPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="glass-panel border-white/10 bg-gradient-to-br from-background to-green-950/10">
+                <Card className="glass-panel floating-card border-white/10 bg-gradient-to-br from-background to-green-950/10">
                   <CardHeader>
                     <CardTitle className="text-green-400 flex items-center gap-2">
                       <CheckCircle2 className="w-5 h-5" /> Matched Keywords

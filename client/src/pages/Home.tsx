@@ -75,7 +75,7 @@ function SparkleIcon(props: React.SVGProps<SVGSVGElement>) {
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) {
   return (
-    <div className="glass-panel p-8 rounded-2xl flex flex-col items-center text-center gap-4 hover:border-primary/30 transition-colors duration-300">
+    <div className="glass-panel p-8 rounded-2xl flex flex-col items-center text-center gap-4 hover:border-primary/30 transition-all duration-300 floating-card">
       <div className="p-3 bg-background/50 rounded-xl border border-white/5">
         {icon}
       </div>
