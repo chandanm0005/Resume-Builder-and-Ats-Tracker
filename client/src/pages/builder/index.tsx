@@ -55,6 +55,7 @@ function GhostTextarea({ value, onChange, suggestion, placeholder, className, ..
 
 export default function BuilderPage() {
   const [step, setStep] = useState(1);
+  const [activeTab, setActiveTab] = useState("info");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState('modern');
   const [showPreview, setShowPreview] = useState(false);
@@ -85,6 +86,7 @@ export default function BuilderPage() {
   ]);
 
   const [jdText, setJdText] = useState("");
+  const [resumeText, setResumeText] = useState("");
   
   // State for JD matching
   const [requiredSkills, setRequiredSkills] = useState([
@@ -141,6 +143,18 @@ export default function BuilderPage() {
           { name: 'Problem Solving', present: false },
           { name: 'Leadership', present: false }
         ]);
+      }
+      
+      // If user pasted their resume, let's "mock" parsing it into the fields
+      if (resumeText.trim().length > 50) {
+        setPersonalInfo(prev => ({ ...prev, name: "Parsed User Name", email: "user@example.com" }));
+        setExperiences([{
+          id: Date.now(),
+          title: "Parsed Job Title",
+          company: "Parsed Company",
+          description: "• Extracted bullet point 1 from your resume\n• Extracted bullet point 2 from your resume",
+          showSuggestions: false
+        }]);
       }
       
       setIsAnalyzing(false);
@@ -259,11 +273,13 @@ export default function BuilderPage() {
     
     // Title/Name
     doc.setFontSize(24);
+    doc.setFont("helvetica", "bold");
     doc.text(personalInfo.name || "Your Name", margin, yPos);
     yPos += 10;
     
     // Contact Info
     doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
     const contactInfo = [
       personalInfo.email,
       personalInfo.phone,
@@ -273,24 +289,27 @@ export default function BuilderPage() {
     ].filter(Boolean).join(" | ");
     
     doc.text(contactInfo, margin, yPos);
-    yPos += 20;
+    yPos += 15;
     
     // Experience Section
     if (experiences.some(exp => exp.title || exp.company)) {
       doc.setFontSize(14);
-      doc.text("Experience", margin, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.text("EXPERIENCE", margin, yPos);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos + 2, 190, yPos + 2);
-      yPos += 10;
+      yPos += 8;
       
       experiences.forEach(exp => {
         if (exp.title || exp.company) {
           doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
           doc.text(`${exp.title}${exp.company ? ` at ${exp.company}` : ''}`, margin, yPos);
-          yPos += 7;
+          yPos += 6;
           
           if (exp.description) {
             doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
             const lines = doc.splitTextToSize(exp.description, 170);
             doc.text(lines, margin, yPos);
             yPos += (lines.length * 5) + 5;
@@ -302,26 +321,56 @@ export default function BuilderPage() {
     // Projects Section
     if (projects.some(proj => proj.title)) {
       yPos += 5;
-      if (yPos > 270) { doc.addPage(); yPos = 20; }
+      if (yPos > 260) { doc.addPage(); yPos = 20; }
       
       doc.setFontSize(14);
-      doc.text("Projects", margin, yPos);
+      doc.setFont("helvetica", "bold");
+      doc.text("PROJECTS", margin, yPos);
       doc.setLineWidth(0.5);
       doc.line(margin, yPos + 2, 190, yPos + 2);
-      yPos += 10;
+      yPos += 8;
       
       projects.forEach(proj => {
         if (proj.title) {
           doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
           doc.text(proj.title, margin, yPos);
-          yPos += 7;
+          yPos += 6;
           
           if (proj.description) {
             doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
             const lines = doc.splitTextToSize(proj.description, 170);
             doc.text(lines, margin, yPos);
             yPos += (lines.length * 5) + 5;
           }
+        }
+      });
+    }
+
+    // Education Section
+    if (education.some(edu => edu.school)) {
+      yPos += 5;
+      if (yPos > 260) { doc.addPage(); yPos = 20; }
+      
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.text("EDUCATION", margin, yPos);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos + 2, 190, yPos + 2);
+      yPos += 8;
+      
+      education.forEach(edu => {
+        if (edu.school) {
+          doc.setFontSize(12);
+          doc.setFont("helvetica", "bold");
+          doc.text(`${edu.school}${edu.degree ? ` - ${edu.degree}` : ''}`, margin, yPos);
+          if (edu.year) {
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.text(edu.year, 190, yPos, { align: "right" });
+          }
+          yPos += 8;
         }
       });
     }
@@ -399,51 +448,34 @@ export default function BuilderPage() {
           </div>
 
           {step === 1 && (
-            <div className="grid lg:grid-cols-3 gap-8">
-              <Card className="glass-panel floating-card border-white/10 lg:col-span-1 h-fit">
+            <div className="grid lg:grid-cols-2 gap-8">
+              <Card className="glass-panel floating-card border-white/10 h-fit">
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <LayoutTemplate className="w-4 h-4 text-primary" /> Select Template
+                  <CardTitle className="text-xl flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-primary" />
+                    1. Your Existing Resume (Optional)
                   </CardTitle>
+                  <CardDescription>
+                    Paste your current resume content here. We will auto-fill the builder so you only modify what you need.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Current Template Preview Image */}
-                  <div className="aspect-[3/4] w-full rounded-xl overflow-hidden border border-white/10 bg-white/5 relative">
-                     <img 
-                       src={templates.find(t => t.id === selectedTemplate)?.img} 
-                       alt="Template Preview" 
-                       className="w-full h-full object-cover transition-opacity duration-300"
-                     />
-                     <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent flex items-end p-4">
-                       <span className="font-medium text-sm drop-shadow-md">
-                         {templates.find(t => t.id === selectedTemplate)?.name} Preview
-                       </span>
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                    {templates.map(t => (
-                      <div 
-                        key={t.id}
-                        onClick={() => setSelectedTemplate(t.id)}
-                        className={`p-2 rounded-lg border cursor-pointer transition-all text-center ${
-                          selectedTemplate === t.id 
-                            ? 'border-primary bg-primary/20 text-primary' 
-                            : 'border-white/10 hover:border-white/30 bg-background/50 text-muted-foreground'
-                        }`}
-                      >
-                        <span className="font-medium text-xs block">{t.name}</span>
-                      </div>
-                    ))}
+                  <div className="space-y-2">
+                    <Textarea 
+                      value={resumeText}
+                      onChange={(e) => setResumeText(e.target.value)}
+                      placeholder="Paste your plain text resume here..." 
+                      className="min-h-[300px] font-mono text-sm bg-background/50 border-white/10"
+                    />
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
+              <Card className="glass-panel floating-card border-white/10">
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <TargetIcon className="w-5 h-5 text-primary" />
-                    Target Job Description
+                    2. Target Job Description
                   </CardTitle>
                   <CardDescription>
                     Paste the job description here to optimize your resume keywords.
@@ -451,20 +483,48 @@ export default function BuilderPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="jd">Job Description</Label>
                     <Textarea 
                       id="jd" 
                       value={jdText}
                       onChange={(e) => setJdText(e.target.value)}
                       placeholder="Paste the full job description here..." 
-                      className="min-h-[400px] font-mono text-sm bg-background/50 border-white/10"
+                      className="min-h-[300px] font-mono text-sm bg-background/50 border-white/10"
                     />
                   </div>
-                  <Button className="w-full gap-2 h-12" onClick={simulateAnalysis} disabled={isAnalyzing}>
+                </CardContent>
+              </Card>
+
+              <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
+                <CardHeader>
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <LayoutTemplate className="w-4 h-4 text-primary" /> 3. Select Output Template
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+                    {templates.map(t => (
+                      <div 
+                        key={t.id}
+                        onClick={() => setSelectedTemplate(t.id)}
+                        className={`p-2 rounded-lg border cursor-pointer transition-all text-center group relative overflow-hidden ${
+                          selectedTemplate === t.id 
+                            ? 'border-primary bg-primary/20 text-primary' 
+                            : 'border-white/10 hover:border-white/30 bg-background/50 text-muted-foreground'
+                        }`}
+                      >
+                        <span className="font-medium text-xs block relative z-10">{t.name}</span>
+                        {selectedTemplate === t.id && (
+                           <div className="absolute inset-0 bg-primary/10 animate-pulse" />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <Button className="w-full gap-2 h-12 mt-4" onClick={simulateAnalysis} disabled={isAnalyzing}>
                     {isAnalyzing ? (
                       <>
                         <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        Analyzing Requirements...
+                        Analyzing & Setting up Builder...
                       </>
                     ) : (
                       <>
@@ -481,7 +541,7 @@ export default function BuilderPage() {
           {step >= 2 && (
              <div className="grid lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4">
                <div className="lg:col-span-2 space-y-6">
-                 <Tabs defaultValue="info" className="w-full">
+                 <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                     <TabsList className="grid w-full grid-cols-4 bg-background/50 border border-white/5">
                       <TabsTrigger value="info">Info</TabsTrigger>
                       <TabsTrigger value="experience">Experience</TabsTrigger>
@@ -555,6 +615,9 @@ export default function BuilderPage() {
                             </div>
                           </div>
                         </CardContent>
+                        <div className="p-4 border-t border-white/10 flex justify-end">
+                           <Button onClick={() => setActiveTab("experience")}>Next: Add Experience</Button>
+                        </div>
                       </Card>
                     </TabsContent>
 
@@ -641,6 +704,10 @@ export default function BuilderPage() {
                             <Plus className="w-4 h-4" /> Add Experience
                           </Button>
                         </CardContent>
+                        <div className="p-4 border-t border-white/10 flex justify-between">
+                           <Button variant="outline" onClick={() => setActiveTab("info")}>Back</Button>
+                           <Button onClick={() => setActiveTab("projects")}>Next: Add Projects</Button>
+                        </div>
                       </Card>
                     </TabsContent>
 
@@ -699,6 +766,10 @@ export default function BuilderPage() {
                             <Plus className="w-4 h-4" /> Add Project
                           </Button>
                         </CardContent>
+                        <div className="p-4 border-t border-white/10 flex justify-between">
+                           <Button variant="outline" onClick={() => setActiveTab("experience")}>Back</Button>
+                           <Button onClick={() => setActiveTab("education")}>Next: Add Education</Button>
+                        </div>
                        </Card>
                     </TabsContent>
 
@@ -757,6 +828,12 @@ export default function BuilderPage() {
                             <Plus className="w-4 h-4" /> Add Education
                           </Button>
                         </CardContent>
+                        <div className="p-4 border-t border-white/10 flex justify-between">
+                           <Button variant="outline" onClick={() => setActiveTab("projects")}>Back</Button>
+                           <Button onClick={handlePreview} className="gap-2">
+                             <CheckCircle2 className="w-4 h-4" /> Finish & Preview
+                           </Button>
+                        </div>
                       </Card>
                     </TabsContent>
                  </Tabs>
@@ -813,7 +890,7 @@ export default function BuilderPage() {
                         </div>
                      </div>
 
-                     <div className="pt-4 border-t border-white/10">
+                     <div className="pt-4 border-t border-white/10 hidden">
                         <Button className="w-full gap-2" onClick={handlePreview}>
                           <Download className="w-4 h-4" />
                           Preview & Export PDF
