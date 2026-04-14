@@ -453,19 +453,39 @@ export default function BuilderPage() {
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <FileText className="w-5 h-5 text-primary" />
-                    1. Your Existing Resume (Optional)
+                    Your Existing Resume (Optional)
                   </CardTitle>
                   <CardDescription>
-                    Paste your current resume content here. We will auto-fill the builder so you only modify what you need.
+                    Upload your current resume or paste a link. Leave blank to build from scratch.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
+                <CardContent className="space-y-6">
+                  <div 
+                    className="border-2 border-dashed border-white/20 rounded-xl p-8 flex flex-col items-center justify-center text-center bg-background/50 hover:bg-white/5 transition-colors cursor-pointer group"
+                    onClick={() => document.getElementById('resume-upload')?.click()}
+                  >
+                    <input type="file" id="resume-upload" className="hidden" accept=".pdf,.docx,.txt" />
+                    <div className="p-3 bg-primary/20 rounded-full mb-4 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6 text-primary" />
+                    </div>
+                    <p className="font-medium mb-1">Click to upload or drag and drop</p>
+                    <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT (Max 5MB)</p>
+                  </div>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-white/10" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <Textarea 
-                      value={resumeText}
-                      onChange={(e) => setResumeText(e.target.value)}
-                      placeholder="Paste your plain text resume here..." 
-                      className="min-h-[300px] font-mono text-sm bg-background/50 border-white/10"
+                    <Label>Resume Link</Label>
+                    <Input 
+                      placeholder="https://linkedin.com/in/yourprofile or Portfolio link" 
+                      className="bg-background/50 border-white/10"
                     />
                   </div>
                 </CardContent>
@@ -475,7 +495,7 @@ export default function BuilderPage() {
                 <CardHeader>
                   <CardTitle className="text-xl flex items-center gap-2">
                     <TargetIcon className="w-5 h-5 text-primary" />
-                    2. Target Job Description
+                    Target Job Description
                   </CardTitle>
                   <CardDescription>
                     Paste the job description here to optimize your resume keywords.
