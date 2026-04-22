@@ -1,6 +1,6 @@
 # ResumeHub — AI-Powered Resume Builder & ATS Tracker
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-View%20Here-blue)] <!-- Replace with actual demo link -->
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-View%20Here-blue)](https://resume-builder-and-ats-tracker.onrender.com) <!-- Replace with actual demo link -->
 
 Developed as an academic mini project under REVA University.
 
