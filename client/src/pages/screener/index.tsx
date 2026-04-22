@@ -1,368 +1,372 @@
 import { Navbar } from "@/components/layout/Navbar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Upload, FileText, BarChart, ChevronRight, AlertTriangle, CheckCircle2, Zap, Check, ExternalLink } from "lucide-react";
 import { useState, useRef } from "react";
-import { Progress } from "@/components/ui/progress";
+import { Upload, FileText, BarChart2, CheckCircle2, AlertTriangle, Zap, RotateCcw, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export default function ScreenerPage() {
-  const [analyzing, setAnalyzing] = useState(false);
-  const [results, setResults] = useState(false);
-  const [fileName, setFileName] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFileName(file.name);
-      
-      // Since we don't have a real backend to parse the PDF, we will mock reading it
-      // by generating some fake text that includes random technologies so the ATS
-      // can "find" something in the resume.
-      const simulatedResumeText = `
-        Software Engineer with 5 years experience.
-        Familiar with ${techDatabase.sort(() => 0.5 - Math.random()).slice(0, 15).join(", ")}.
-        Led team of 10 developers to build scalable applications.
-      `;
-      
-      // Store this mock text so we can use it during analysis
-      (window as any).__mockResumeText = simulatedResumeText;
-
-      toast({
-        title: "Resume Uploaded",
-        description: `${file.name} has been successfully loaded.`,
-      });
-    }
-  };
-
-  const [jdText, setJdText] = useState("");
-  const [extractedKeywords, setExtractedKeywords] = useState({ matched: [] as string[], missing: [] as string[] });
-
-  const techDatabase = [
-    // Languages
-    "JavaScript", "TypeScript", "Python", "Java", "C++", "C#", "Ruby", "Go", "Rust", "PHP", "Swift", "Kotlin", "HTML", "CSS", "SQL", "NoSQL", "R", "Perl", "MATLAB", "Dart", "Scala", "Objective-C",
-    // Frontend
-    "React", "Vue", "Angular", "Next.js", "Nuxt", "Svelte", "Redux", "Zustand", "Tailwind", "Bootstrap", "Material UI", "Chakra UI", "Webpack", "Vite", "Babel", "Jest", "Cypress", "HTML5", "CSS3", "SASS", "LESS",
-    // Backend
-    "Node.js", "Express", "Django", "Flask", "Spring", "Spring Boot", "ASP.NET", "Laravel", "Ruby on Rails", "FastAPI", "NestJS", "GraphQL", "REST", "gRPC", "Microservices",
-    // Databases
-    "MongoDB", "PostgreSQL", "MySQL", "Redis", "Cassandra", "Elasticsearch", "MariaDB", "Oracle", "DynamoDB", "Firebase", "Supabase", "Prisma",
-    // DevOps & Cloud
-    "Docker", "Kubernetes", "AWS", "Azure", "GCP", "Google Cloud", "CI/CD", "Git", "GitHub", "GitLab", "Bitbucket", "Jenkins", "Travis CI", "CircleCI", "Terraform", "Ansible", "Linux", "Unix", "Bash", "Shell", "Nginx", "Apache",
-    // Methodologies
-    "Agile", "Scrum", "Kanban", "JIRA", "Confluence", "TDD", "BDD",
-    // Data & AI
-    "Machine Learning", "AI", "NLP", "Data Science", "Pandas", "NumPy", "TensorFlow", "PyTorch", "Keras", "Scikit-Learn", "Computer Vision",
-    // Tools / Msg
-    "Kafka", "RabbitMQ", "Spark", "Hadoop", "Figma", "Sketch", "Adobe XD", "Postman", "Swagger"
-  ];
-
-  const handleAnalyze = () => {
-    if (!fileName) {
-      toast({
-        title: "Missing Resume",
-        description: "Please upload your resume before analyzing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!jdText.trim()) {
-      toast({
-        title: "Missing Job Description",
-        description: "Please paste a job description before analyzing.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setAnalyzing(true);
-    
-    setTimeout(() => {
-      // 1. Parse JD for required skills
-      const jdUpper = jdText.toUpperCase();
-      // Extract all skills from our database that appear in the JD
-      const requiredSkills = techDatabase.filter(tech => jdUpper.includes(tech.toUpperCase()));
-      
-      // If the JD is very brief or doesn't mention specific tech, add some standard ones based on context
-      if (requiredSkills.length < 5) {
-         const fallbackTechs = ["React", "Node.js", "JavaScript", "TypeScript", "Git", "Agile", "SQL", "AWS", "Docker"];
-         for (const tech of fallbackTechs) {
-           if (!requiredSkills.includes(tech)) requiredSkills.push(tech);
-         }
+async function extractPDF(file: File): Promise<string> {
+  try {
+    const pdfjsLib = await import("pdfjs-dist");
+    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
+    const buffer = await file.arrayBuffer();
+    const pdf = await (pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true, disableFontFace: true } as any)).promise;
+    const pages: string[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const rows = new Map<number, { x: number; str: string }[]>();
+      for (const item of tc.items as any[]) {
+        if (!item.str?.trim()) continue;
+        const y = Math.round((item.transform?.[5] ?? 0) / 2) * 2;
+        if (!rows.has(y)) rows.set(y, []);
+        rows.get(y)!.push({ x: item.transform?.[4] ?? 0, str: item.str });
       }
-
-      // 2. Simulate Resume parsing 
-      // We will pretend we read the uploaded resume and compare it against the required skills
-      const resumeText = ((window as any).__mockResumeText || "").toUpperCase();
-      const matched: string[] = [];
-      const missing: string[] = [];
-      
-      requiredSkills.forEach(tech => {
-        // If the mocked resume text contains the skill, it's a match!
-        // We also add a small random chance for it to miss just to simulate ATS parsing errors
-        if (resumeText.includes(tech.toUpperCase()) || Math.random() > 0.8) {
-          matched.push(tech);
-        } else {
-          missing.push(tech);
-        }
-      });
-
-      // Add a few "extra" skills the resume has that weren't strictly in the JD
-      const extraSkillsCount = Math.floor(Math.random() * 4) + 2;
-      const allOtherSkills = techDatabase.filter(t => !requiredSkills.includes(t));
-      const shuffledOthers = allOtherSkills.sort(() => 0.5 - Math.random());
-      const extraResumeSkills = shuffledOthers.slice(0, extraSkillsCount);
-      
-      // Combine for display if needed, but usually we just care about matched against JD
-      matched.push(...extraResumeSkills);
-
-      // Ensure at least something in each category to avoid empty UI states
-      if (missing.length === 0 && matched.length > 2) missing.push(matched.shift()!);
-      if (matched.length === 0 && missing.length > 2) matched.push(missing.shift()!);
-
-      setExtractedKeywords({ matched, missing });
-      setAnalyzing(false);
-      setResults(true);
-      toast({
-        title: "Analysis Complete",
-        description: `Analyzed against ${jdText.split(/\s+/).length} words in Job Description.`,
-      });
-    }, 2500);
-  };
-
-  return (
-    <div className="min-h-screen flex flex-col pb-20">
-      <Navbar />
-      
-      <main className="flex-1 container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto space-y-8">
-          
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold font-mono tracking-tight">ATS Screener</h1>
-              <p className="text-muted-foreground mt-2">Evaluate your resume against a specific job description.</p>
-            </div>
-          </div>
-
-          {!results ? (
-            <div className="grid md:grid-cols-2 gap-8">
-              {/* Upload Resume */}
-              <Card className="glass-panel floating-card border-white/10 flex flex-col">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5 text-primary" />
-                    Your Resume
-                  </CardTitle>
-                  <CardDescription>Upload your current resume in PDF or DOCX format</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col justify-center">
-                  <input 
-                    type="file" 
-                    accept=".pdf,.docx" 
-                    className="hidden" 
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                  />
-                  <div 
-                    className={`border-2 border-dashed ${fileName ? 'border-primary/50 bg-primary/5' : 'border-white/10 hover:bg-white/5 hover:border-primary/50'} rounded-xl p-12 flex flex-col items-center justify-center text-center transition-colors cursor-pointer group h-full`}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <div className={`w-16 h-16 rounded-full ${fileName ? 'bg-primary/20' : 'bg-primary/10'} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-                      {fileName ? <Check className="w-8 h-8 text-primary" /> : <Upload className="w-8 h-8 text-primary" />}
-                    </div>
-                    <h3 className="font-medium text-lg mb-1">{fileName ? "File Uploaded" : "Upload Resume"}</h3>
-                    <p className="text-sm text-muted-foreground mb-4 break-all">{fileName || "PDF or DOCX (Max 5MB)"}</p>
-                    <Button variant={fileName ? "default" : "secondary"} size="sm" onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                      {fileName ? "Change File" : "Browse Files"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Paste JD */}
-              <Card className="glass-panel floating-card border-white/10 flex flex-col">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <BarChart className="w-5 h-5 text-accent" />
-                    Job Description
-                  </CardTitle>
-                  <CardDescription>Paste the target job description here</CardDescription>
-                </CardHeader>
-                <CardContent className="flex-1 space-y-4">
-                  <Textarea 
-                    placeholder="Paste the job description here..." 
-                    className="h-full min-h-[250px] font-mono text-sm bg-background/50 border-white/10 resize-none"
-                    value={jdText}
-                    onChange={(e) => setJdText(e.target.value)}
-                  />
-                </CardContent>
-                <CardFooter>
-                  <Button 
-                    className="w-full gap-2 h-12 text-md font-medium" 
-                    onClick={handleAnalyze}
-                    disabled={analyzing}
-                  >
-                    {analyzing ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        Running ATS Simulation...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-5 h-5" />
-                        Calculate ATS Score
-                      </>
-                    )}
-                  </Button>
-                </CardFooter>
-              </Card>
-            </div>
-          ) : (
-            /* Results View */
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
-              
-              {/* Top Score Section */}
-              <div className="grid lg:grid-cols-3 gap-6">
-                <Card className="glass-panel floating-card border-white/10 lg:col-span-1 flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
-                  <div className="absolute inset-0 bg-primary/10 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent"></div>
-                  
-                  <div className="relative z-10">
-                    <h3 className="text-sm font-medium uppercase tracking-wider text-muted-foreground mb-2">Overall Match Score</h3>
-                    <div className="text-7xl font-bold font-mono tracking-tighter text-transparent bg-clip-text bg-gradient-to-br from-white to-white/50 mb-4">
-                      {Math.floor(Math.random() * (92 - 60 + 1) + 60)}<span className="text-4xl text-white/40">%</span>
-                    </div>
-                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 text-yellow-500 text-sm font-medium border border-yellow-500/20">
-                      <AlertTriangle className="w-4 h-4" />
-                      Needs Optimization
-                    </div>
-                  </div>
-                </Card>
-
-                <Card className="glass-panel floating-card border-white/10 lg:col-span-2">
-                  <CardHeader>
-                    <CardTitle>Score Breakdown</CardTitle>
-                    <CardDescription>How your resume performs across key ATS metrics.</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <MetricRow label="Keyword Match" score={80} weight="40%" color="bg-green-500" />
-                    <MetricRow label="Skills Relevance" score={65} weight="25%" color="bg-yellow-500" />
-                    <MetricRow label="Experience Alignment" score={70} weight="15%" color="bg-yellow-500" />
-                    <MetricRow label="Formatting & Parsability" score={95} weight="10%" color="bg-green-500" />
-                    <MetricRow label="Project Relevance" score={45} weight="10%" color="bg-red-500" />
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Actionable Insights */}
-              <div className="grid lg:grid-cols-2 gap-8">
-                <Card className="glass-panel floating-card border-white/10 bg-gradient-to-br from-background to-red-950/10">
-                  <CardHeader>
-                    <CardTitle className="text-red-400 flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5" /> Missing Keywords & Learning Resources
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2 mb-6">
-                      {extractedKeywords.missing.map(skill => (
-                        <div key={skill} className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 text-sm flex items-center gap-2">
-                          {skill}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="p-4 rounded-xl bg-background/50 border border-white/5 space-y-4">
-                      <h4 className="font-medium text-sm">Suggested Actions & Resources:</h4>
-                      
-                      <div className="space-y-3">
-                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm text-primary">Docker & Containerization</span>
-                            <a href="https://docs.docker.com/get-started/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
-                              Official Docs <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Consider building a small web app and containerizing it with Docker to add to your projects section.</p>
-                          <div className="flex gap-2 mt-2">
-                            <a href="https://www.w3schools.com/docker/index.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools Docker Tutorial</a>
-                          </div>
-                        </div>
-
-                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm text-primary">AWS Cloud Services</span>
-                            <a href="https://aws.amazon.com/training/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
-                              AWS Training <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Learn basics of EC2, S3, and RDS. Deploying a simple app on AWS can significantly boost your score.</p>
-                          <div className="flex gap-2 mt-2">
-                            <a href="https://www.w3schools.com/aws/index.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools AWS Tutorial</a>
-                          </div>
-                        </div>
-                        
-                        <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="font-medium text-sm text-primary">Kubernetes (K8s)</span>
-                            <a href="https://kubernetes.io/docs/tutorials/kubernetes-basics/" target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-white flex items-center gap-1 transition-colors">
-                              K8s Tutorials <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Once you understand Docker, learning to orchestrate those containers with K8s is a highly sought-after skill.</p>
-                          <div className="flex gap-2 mt-2">
-                            <a href="https://www.w3schools.com/docker/docker_kubernetes.php" target="_blank" rel="noopener noreferrer" className="text-xs bg-black/40 px-2 py-1 rounded hover:bg-white/10 transition-colors">W3Schools K8s Intro</a>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="glass-panel floating-card border-white/10 bg-gradient-to-br from-background to-green-950/10">
-                  <CardHeader>
-                    <CardTitle className="text-green-400 flex items-center gap-2">
-                      <CheckCircle2 className="w-5 h-5" /> Matched Keywords
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {extractedKeywords.matched.map(skill => (
-                        <div key={skill} className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-300 text-sm">
-                          {skill}
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Back to start */}
-              <div className="flex justify-center pt-8">
-                <Button variant="outline" onClick={() => { setResults(false); setFileName(null); }}>
-                  Analyze Another Resume
-                </Button>
-              </div>
-
-            </div>
-          )}
-        </div>
-      </main>
-    </div>
-  );
+      pages.push(Array.from(rows.entries()).sort((a,b)=>b[0]-a[0]).map(([,items])=>items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(" ")).join("\n"));
+    }
+    return pages.join("\n").trim();
+  } catch(e) { console.error("PDF:",e); return ""; }
 }
 
-function MetricRow({ label, score, weight, color }: { label: string, score: number, weight: string, color: string }) {
+async function extractDOCX(file: File): Promise<string> {
+  try {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
+    return result.value?.trim() ?? "";
+  } catch(e) { console.error("DOCX:",e); return ""; }
+}
+
+async function extractFile(file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return extractPDF(file);
+  if (ext === "docx" || ext === "doc") return extractDOCX(file);
+  try { return (await file.text()).trim(); } catch { return ""; }
+}
+
+// ── Smart JD keyword extraction ─────────────────────────────────────────────
+// Strategy: only extract things that are actually skills/tools/qualifications
+// NOT random sentence fragments
+
+// Master list of known tech/skill terms — used for exact matching
+const KNOWN_TERMS: string[] = [
+  // Languages
+  "JavaScript","TypeScript","Python","Java","C++","C#","C","Go","Golang","Rust","PHP","Swift","Kotlin","Scala","Ruby","R","MATLAB","Dart","Perl","Haskell","Elixir","Clojure","Groovy","Lua","Julia","Bash","Shell","PowerShell","VBA","COBOL","Fortran","Assembly",
+  // Frontend
+  "React","Vue","Angular","Next.js","Nuxt.js","Svelte","Remix","Gatsby","jQuery","Bootstrap","Tailwind","Tailwind CSS","Material UI","Chakra UI","Ant Design","Redux","Zustand","MobX","Recoil","Webpack","Vite","Babel","Rollup","Parcel","SASS","LESS","CSS","HTML","HTML5","CSS3","XML","JSON","GraphQL","REST","REST API","SOAP","WebSocket","gRPC","tRPC",
+  // Backend
+  "Node.js","Express","Express.js","Django","Flask","FastAPI","Spring","Spring Boot","Laravel","Rails","Ruby on Rails","ASP.NET",".NET","NestJS","Gin","Echo","Fiber","Actix","Rocket","Hapi","Koa","Fastify","Strapi","Prisma","Sequelize","TypeORM","Hibernate","SQLAlchemy",
+  // Databases
+  "MySQL","PostgreSQL","MongoDB","Redis","SQLite","Oracle","SQL Server","MariaDB","Cassandra","DynamoDB","Firebase","Firestore","Supabase","CouchDB","Neo4j","InfluxDB","Elasticsearch","Solr","Snowflake","BigQuery","Redshift","Hive","HBase","Cosmos DB",
+  // Cloud & DevOps
+  "AWS","Azure","GCP","Google Cloud","Docker","Kubernetes","Terraform","Ansible","Jenkins","GitHub Actions","GitLab CI","CircleCI","Travis CI","ArgoCD","Helm","Prometheus","Grafana","Datadog","New Relic","Splunk","ELK","Nginx","Apache","Linux","Ubuntu","CentOS","Debian","Unix","Bash","CI/CD","DevOps","SRE","IaC",
+  // Tools
+  "Git","GitHub","GitLab","Bitbucket","Jira","Confluence","Notion","Slack","Figma","Sketch","Adobe XD","Postman","Swagger","OpenAPI","Insomnia","VS Code","IntelliJ","Eclipse","Xcode","Android Studio","Vim","Neovim",
+  // Data & ML
+  "Machine Learning","Deep Learning","NLP","Computer Vision","Data Science","Data Analysis","Data Engineering","Data Visualization","Pandas","NumPy","SciPy","Matplotlib","Seaborn","Plotly","TensorFlow","PyTorch","Keras","Scikit-Learn","XGBoost","LightGBM","Hugging Face","OpenAI","LangChain","Spark","Hadoop","Kafka","Airflow","dbt","Tableau","Power BI","Looker","Metabase","Excel","SPSS","SAS","R Studio",
+  // Mobile
+  "React Native","Flutter","Android","iOS","Swift","Kotlin","Ionic","Expo","Xamarin","Cordova",
+  // Testing
+  "Jest","Mocha","Chai","Jasmine","Cypress","Playwright","Selenium","Pytest","JUnit","TestNG","Vitest","Testing Library","Storybook",
+  // Methodologies
+  "Agile","Scrum","Kanban","SAFe","Waterfall","TDD","BDD","DDD","SOLID","OOP","Microservices","Serverless","Event-Driven","CQRS","Clean Architecture",
+  // Soft skills / qualifications that ATS checks
+  "Communication","Problem Solving","Teamwork","Leadership","Analytical","Critical Thinking","Time Management","Collaboration","Presentation","Documentation",
+  // Certifications
+  "AWS Certified","Azure Certified","GCP Certified","PMP","CISSP","CPA","CFA","CCNA","CCNP","CompTIA","Scrum Master","Product Owner",
+];
+
+// Normalize for comparison
+function norm(s: string) { return s.toLowerCase().replace(/\s+/g," ").trim(); }
+
+// Whole-word match
+function wholeWord(term: string, text: string): boolean {
+  const esc = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("(?<![a-zA-Z0-9.+#])" + esc + "(?![a-zA-Z0-9.+#])", "i").test(text);
+}
+
+function extractJDKeywords(jd: string): string[] {
+  const found = new Map<string, string>(); // norm -> display
+
+  // Pass 1: Match known terms (longest first to avoid partial matches)
+  const sorted = [...KNOWN_TERMS].sort((a, b) => b.length - a.length);
+  for (const term of sorted) {
+    if (wholeWord(term, jd)) {
+      found.set(norm(term), term);
+    }
+  }
+
+  // Pass 2: Extract tokens that look like tech/tools but aren't in our list
+  // Rules: CamelCase, ALL_CAPS (2-8 chars), or has digit+letter combo, or dotted (node.js style)
+  // Must be at least 2 chars, not a stop word
+  const STOP = new Set(["the","and","for","with","from","that","this","your","are","our","will","have","has","must","should","ability","skills","experience","work","working","team","role","job","position","years","year","using","plus","good","strong","excellent","knowledge","required","preferred","about","after","also","been","before","being","between","both","come","could","does","done","each","here","into","just","like","make","many","more","most","much","need","only","other","over","same","some","such","than","their","them","then","there","these","they","those","through","under","until","very","want","well","were","what","when","where","which","while","would","you","we","as","at","be","by","do","if","in","is","it","no","of","on","or","so","to","up","us","can","may","new","own","per","set","use","via","who","why","yes","yet","able","across","along","already","always","another","around","build","built","candidate","company","develop","different","during","either","ensure","every","first","following","given","help","high","however","including","large","last","least","less","level","look","maintain","making","might","never","next","often","own","part","place","please","point","provide","rather","right","since","small","something","sometimes","still","take","things","think","time","together","toward","type","used","various","within","without","write","written","apply","based","bring","care","collaborate","communicate","day","drive","fast","focus","grow","hire","impact","join","learn","love","mission","move","open","opportunity","passion","people","product","quality","quickly","real","scale","seek","ship","solve","start","support","understand","value","world","collect","clean","identify","trends","patterns","business","strategies","create","dashboards","manipulate","data","cross","functional","present","findings","concise","manner","related","field","basic","understanding","analysis","techniques","cloud","platforms","analyze","insights","reports","extract","stakeholders","clear","communication","preprocessing","familiarity","proficiency","multiple","sources"]);
+
+  // CamelCase tokens: ReactNative, TypeScript, PostgreSQL etc
+  const camel = jd.match(/\b[A-Z][a-z]+(?:[A-Z][a-z]+)+\b/g) ?? [];
+  for (const t of camel) {
+    const k = norm(t);
+    if (!STOP.has(k) && !found.has(k)) found.set(k, t);
+  }
+
+  // ALL-CAPS 2-8 chars: AWS, SQL, API, REST, HTML, CSS, JWT, OOP, SDK
+  const caps = jd.match(/\b[A-Z]{2,8}\b/g) ?? [];
+  for (const t of caps) {
+    const k = norm(t);
+    if (!STOP.has(k) && !found.has(k) && t.length >= 2) found.set(k, t);
+  }
+
+  // Slash combos: CI/CD, UI/UX, B2B
+  const slash = jd.match(/\b[A-Za-z0-9]{2,}\/[A-Za-z0-9]{2,}\b/g) ?? [];
+  for (const t of slash) {
+    const k = norm(t);
+    if (!STOP.has(k) && !found.has(k)) found.set(k, t);
+  }
+
+  // Dotted tech names: node.js, vue.js, next.js (lowercase)
+  const dotted = jd.match(/\b[a-z][a-z0-9]+\.[a-z]{2,4}\b/gi) ?? [];
+  for (const t of dotted) {
+    const k = norm(t);
+    if (!STOP.has(k) && !found.has(k)) found.set(k, t);
+  }
+
+  // Versioned tokens: Python3, ES6, HTML5, CSS3, Java8, .NET6
+  const versioned = jd.match(/\b[A-Za-z]+[0-9]+\b/g) ?? [];
+  for (const t of versioned) {
+    const k = norm(t);
+    if (!STOP.has(k) && !found.has(k) && t.length >= 3) found.set(k, t);
+  }
+
+  return Array.from(found.values());
+}
+function runATS(resume: string, jd: string) {
+  const resumeLow = resume.toLowerCase();
+  const jdKeywords = extractJDKeywords(jd);
+
+  const matched: string[] = [];
+  const missing: string[] = [];
+  for (const kw of jdKeywords) {
+    if (wholeWord(kw, resume) || resumeLow.includes(kw.toLowerCase())) {
+      matched.push(kw);
+    } else {
+      missing.push(kw);
+    }
+  }
+
+  const skillScore = jdKeywords.length > 0 ? Math.round((matched.length / jdKeywords.length) * 100) : 50;
+
+  const sec = {
+    contact:    /\b(email|phone|linkedin|github|@)\b/i.test(resume),
+    summary:    /\b(summary|objective|profile|about)\b/i.test(resume),
+    experience: /\b(experience|work|employment|internship)\b/i.test(resume),
+    education:  /\b(education|university|college|degree|b\.?tech|bachelor|master|bca|mca)\b/i.test(resume),
+    skills:     /\b(skills|technologies|tech stack|proficient)\b/i.test(resume),
+  };
+  const sectionScore = Math.round((Object.values(sec).filter(Boolean).length / 5) * 100);
+
+  const verbs = ["developed","implemented","built","designed","led","optimized","delivered","engineered","created","managed","architected","deployed","automated","reduced","increased","improved","launched","integrated","migrated","collaborated","maintained","refactored","tested","documented"];
+  const verbsFound = verbs.filter(v => resumeLow.includes(v));
+  const verbScore = Math.min(100, Math.round((verbsFound.length / 8) * 100));
+
+  const qm = resume.match(/\d+\s*(%|percent|x\b|users|customers|engineers|team members|projects|services|ms\b|seconds|hours|days|weeks|months)/gi) ?? [];
+  const impactScore = Math.min(100, qm.length * 15);
+
+  const titleM = jd.match(/\b(software engineer|frontend developer|backend developer|full.?stack|data scientist|data analyst|devops engineer|machine learning engineer|android developer|ios developer|product manager|ui.?ux designer|cloud engineer|security engineer)\b/i);
+  const roleScore = titleM ? (resumeLow.includes(titleM[0].toLowerCase()) ? 100 : 40) : 60;
+
+  const jdDeg = /\b(b\.?tech|bachelor|degree|engineering|computer science)\b/i.test(jd);
+  const resDeg = /\b(b\.?tech|bachelor|degree|engineering|computer science|bca|mca)\b/i.test(resume);
+  const eduScore = jdDeg ? (resDeg ? 100 : 30) : 80;
+
+  const stopWords = new Set(["about","after","again","also","been","before","being","between","both","came","come","could","does","done","each","from","have","here","into","just","like","make","many","more","most","much","must","need","only","other","over","same","should","some","such","than","that","their","them","then","there","these","they","this","those","through","under","until","very","want","well","were","what","when","where","which","while","will","with","would","your","able","across","along","already","always","another","around","build","built","candidate","company","develop","different","during","either","ensure","every","first","following","given","help","high","however","including","large","last","least","less","level","look","maintain","making","might","never","next","often","other","own","part","place","please","point","provide","rather","right","since","small","something","sometimes","still","take","things","think","time","together","toward","type","used","using","various","within","without","write","written"]);
+  const jdW = Array.from(new Set(jd.toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(w=>w.length>=5&&!stopWords.has(w))));
+  const densityScore = jdW.length > 0 ? Math.round((jdW.filter(w=>resumeLow.includes(w)).length/jdW.length)*100) : 50;
+
+  const overall = Math.round(skillScore*0.30+sectionScore*0.15+verbScore*0.15+impactScore*0.10+roleScore*0.10+eduScore*0.10+densityScore*0.10);
+
+  const col = (n:number,hi:number,mid:number) => n>=hi?"#22c55e":n>=mid?"#eab308":"#ef4444";
+  const breakdown = [
+    { label:"Skill & Keyword Match", score:skillScore,   weight:"30%", color:col(skillScore,70,40) },
+    { label:"Section Completeness",  score:sectionScore, weight:"15%", color:col(sectionScore,80,50) },
+    { label:"Action Verbs",          score:verbScore,    weight:"15%", color:col(verbScore,60,30) },
+    { label:"Quantified Impact",     score:impactScore,  weight:"10%", color:col(impactScore,40,20) },
+    { label:"Role Alignment",        score:roleScore,    weight:"10%", color:col(roleScore,70,40) },
+    { label:"Education Match",       score:eduScore,     weight:"10%", color:col(eduScore,80,50) },
+    { label:"JD Keyword Density",    score:densityScore, weight:"10%", color:col(densityScore,50,30) },
+  ];
+
+  const tips: string[] = [];
+  if (skillScore < 60 && missing.length) tips.push("Add missing keywords to your resume: " + missing.slice(0,5).join(", "));
+  if (!sec.summary)     tips.push("Add a Professional Summary section — ATS systems specifically look for it.");
+  if (!sec.contact)     tips.push("Ensure email, phone, and LinkedIn are clearly listed.");
+  if (verbScore < 50)   tips.push("Use more action verbs: Developed, Built, Optimized, Led, Delivered...");
+  if (impactScore < 30) tips.push("Add metrics to bullets — e.g. Reduced load time by 40% or Led team of 5.");
+  if (!sec.skills)      tips.push("Add a dedicated Skills section — ATS parsers look for it explicitly.");
+
+  return { overall, breakdown, matched, missing, sec, tips, jdKeywords };
+}
+
+const LEARN: Record<string,{url:string;tip:string}> = {
+  "Docker":          {url:"https://docs.docker.com/get-started/",                    tip:"Containerize a small web app to add to your projects."},
+  "Kubernetes":      {url:"https://kubernetes.io/docs/tutorials/kubernetes-basics/", tip:"Orchestrate Docker containers at scale."},
+  "AWS":             {url:"https://aws.amazon.com/training/",                        tip:"Start with EC2, S3, and RDS basics."},
+  "Azure":           {url:"https://learn.microsoft.com/en-us/azure/",               tip:"Great for enterprise and Microsoft-stack roles."},
+  "GCP":             {url:"https://cloud.google.com/training",                       tip:"Strong for ML and data engineering roles."},
+  "GraphQL":         {url:"https://graphql.org/learn/",                              tip:"Modern API query language — increasingly required."},
+  "TypeScript":      {url:"https://www.typescriptlang.org/docs/",                   tip:"Now expected in most frontend and Node.js roles."},
+  "Machine Learning":{url:"https://www.coursera.org/learn/machine-learning",        tip:"Andrew Ng course is the gold standard."},
+  "PostgreSQL":      {url:"https://www.postgresql.org/docs/",                       tip:"Most popular open-source relational database."},
+  "Redis":           {url:"https://redis.io/docs/",                                  tip:"In-memory caching — key for performance-critical apps."},
+  "TensorFlow":      {url:"https://www.tensorflow.org/learn",                       tip:"Google ML framework — widely used in industry."},
+  "Django":          {url:"https://docs.djangoproject.com/",                        tip:"Python web framework — popular for backend roles."},
+  "Next.js":         {url:"https://nextjs.org/docs",                                tip:"React framework for production — very in demand."},
+  "Kubernetes":      {url:"https://kubernetes.io/docs/tutorials/kubernetes-basics/", tip:"Container orchestration — highly sought after."},
+};
+
+type ATSResult = ReturnType<typeof runATS>;
+
+export default function ScreenerPage() {
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [fileName, setFileName] = useState<string|null>(null);
+  const [resumeText, setResumeText] = useState("");
+  const [jdText, setJdText] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [result, setResult] = useState<ATSResult|null>(null);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploading(true); setFileName(file.name);
+    const text = await extractFile(file);
+    setResumeText(text); setUploading(false);
+    if (!text.trim()) toast({ title:"Could not read file", description:"File may be image-based. Paste resume text below.", variant:"destructive" });
+    else toast({ title:"Resume loaded", description:text.split(/\s+/).filter(Boolean).length + " words extracted" });
+  };
+
+  const handleAnalyze = () => {
+    if (!resumeText.trim()) { toast({ title:"Resume is empty", description:"Upload a file or paste your resume text.", variant:"destructive" }); return; }
+    if (!jdText.trim()) { toast({ title:"Job description missing", variant:"destructive" }); return; }
+    setAnalyzing(true);
+    setTimeout(() => { setResult(runATS(resumeText, jdText)); setAnalyzing(false); }, 1000);
+  };
+
+  const reset = () => { setResult(null); setFileName(null); setResumeText(""); setJdText(""); if (fileRef.current) fileRef.current.value = ""; };
+  const canAnalyze = resumeText.trim().length > 10 && jdText.trim().length > 10;
+
   return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between text-sm">
-        <span className="font-medium">{label} <span className="text-muted-foreground text-xs font-normal ml-2">Weight: {weight}</span></span>
-        <span className="font-mono">{score}/100</span>
+    <div className="min-h-screen flex flex-col bg-background">
+      <Navbar />
+      <div className="flex-1 max-w-5xl mx-auto w-full px-4 py-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-base font-semibold">ATS Screener</h1>
+            <p className="text-xs text-muted-foreground">Real ATS analysis — extracts all keywords from JD and scores your resume</p>
+          </div>
+          {result && <button onClick={reset} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 transition-colors"><RotateCcw className="w-3.5 h-3.5" /> New Analysis</button>}
+        </div>
+
+        {!result ? (
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="glass rounded-lg p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-primary" /><span className="text-sm font-medium">Your Resume</span></div>
+              <input type="file" accept=".pdf,.docx,.doc,.txt" className="hidden" ref={fileRef} onChange={handleUpload} />
+              <div onClick={() => fileRef.current?.click()} className={"border-2 border-dashed rounded-lg p-5 flex flex-col items-center justify-center text-center cursor-pointer transition-colors " + (fileName && resumeText ? "border-primary/40 bg-primary/5" : fileName && !resumeText ? "border-yellow-500/40 bg-yellow-500/5" : "border-white/10 hover:border-white/20")}>
+                {uploading ? <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin mb-2" />
+                  : fileName && resumeText ? <CheckCircle2 className="w-6 h-6 text-primary mb-1" />
+                  : <Upload className="w-6 h-6 text-muted-foreground mb-1" />}
+                <p className="text-xs font-medium">{uploading ? "Reading..." : fileName ?? "Click to upload"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{fileName && resumeText ? resumeText.split(/\s+/).filter(Boolean).length + " words read" : fileName && !resumeText ? "No text found — paste below" : "PDF, DOCX, or TXT"}</p>
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">Or paste resume text</label>
+                <textarea value={resumeText} onChange={e=>setResumeText(e.target.value)} placeholder="Paste resume here if file upload did not work..." rows={5} className="w-full px-2.5 py-1.5 rounded-md bg-input border border-white/[0.08] text-xs placeholder:text-muted-foreground/40 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none font-mono leading-relaxed" />
+              </div>
+            </div>
+            <div className="glass rounded-lg p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2"><BarChart2 className="w-4 h-4 text-accent" /><span className="text-sm font-medium">Job Description</span></div>
+              <textarea value={jdText} onChange={e=>setJdText(e.target.value)} placeholder="Paste the full job description here..." className="flex-1 min-h-[220px] px-3 py-2 rounded-md bg-input border border-white/[0.08] text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/50 resize-none font-mono leading-relaxed" />
+              <button onClick={handleAnalyze} disabled={analyzing||!canAnalyze} className="flex items-center justify-center gap-2 py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
+                {analyzing ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Analyzing...</> : <><Zap className="w-3.5 h-3.5" /> Run ATS Analysis</>}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-400">
+            <div className="grid md:grid-cols-3 gap-4">
+              <div className="glass rounded-lg p-6 flex flex-col items-center justify-center text-center">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">ATS Score</p>
+                <div className={"text-6xl font-bold font-mono tracking-tighter mb-2 " + (result.overall>=75?"text-emerald-400":result.overall>=50?"text-yellow-400":"text-red-400")}>
+                  {result.overall}<span className="text-2xl text-muted-foreground">%</span>
+                </div>
+                <span className={"text-xs px-2.5 py-0.5 rounded-full border font-medium " + (result.overall>=75?"bg-emerald-500/10 text-emerald-400 border-emerald-500/20":result.overall>=50?"bg-yellow-500/10 text-yellow-400 border-yellow-500/20":"bg-red-500/10 text-red-400 border-red-500/20")}>
+                  {result.overall>=75?"Strong Match":result.overall>=50?"Needs Improvement":"Low Match"}
+                </span>
+                <p className="text-xs text-muted-foreground mt-3">{result.jdKeywords.length} keywords extracted from JD</p>
+              </div>
+              <div className="glass rounded-lg p-4 md:col-span-2">
+                <p className="text-xs font-medium mb-3">Score Breakdown</p>
+                <div className="space-y-2.5">
+                  {result.breakdown.map(item => (
+                    <div key={item.label}>
+                      <div className="flex justify-between text-xs mb-1">
+                        <span className="text-muted-foreground">{item.label} <span className="text-muted-foreground/40">({item.weight})</span></span>
+                        <span className="font-mono font-medium">{item.score}%</span>
+                      </div>
+                      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-700" style={{width:item.score+"%",background:item.color}} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              <div className="glass rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3"><AlertTriangle className="w-3.5 h-3.5 text-red-400" /><span className="text-xs font-medium text-red-400">Missing Keywords ({result.missing.length})</span></div>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {result.missing.length===0 ? <span className="text-xs text-muted-foreground">All keywords matched!</span>
+                    : result.missing.map(s=><span key={s} className="px-2 py-0.5 rounded-md bg-red-500/10 border border-red-500/20 text-red-300 text-xs">{s}</span>)}
+                </div>
+                {result.missing.filter(s=>LEARN[s]).length>0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground font-medium">Learning Resources</p>
+                    {result.missing.filter(s=>LEARN[s]).slice(0,3).map(s=>(
+                      <div key={s} className="bg-white/[0.03] border border-white/[0.06] rounded-md p-2.5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-medium text-primary">{s}</span>
+                          <a href={LEARN[s].url} target="_blank" rel="noopener noreferrer" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">Docs <ExternalLink className="w-3 h-3" /></a>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{LEARN[s].tip}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="glass rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3"><CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /><span className="text-xs font-medium text-emerald-400">Matched Keywords ({result.matched.length})</span></div>
+                <div className="flex flex-wrap gap-1.5">
+                  {result.matched.length===0 ? <span className="text-xs text-muted-foreground">No matches found.</span>
+                    : result.matched.map(s=><span key={s} className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs">{s}</span>)}
+                </div>
+              </div>
+            </div>
+
+            {result.tips.length>0 && (
+              <div className="glass rounded-lg p-4">
+                <p className="text-xs font-medium mb-3">How to Improve Your Score</p>
+                <div className="space-y-2">
+                  {result.tips.map((t,i)=>(
+                    <div key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                      <span className="text-primary mt-0.5 shrink-0">→</span><span>{t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-        <div className={`h-full ${color} transition-all duration-1000 ease-out`} style={{ width: `${score}%` }} />
-      </div>
+      <footer className="border-t border-white/[0.06] py-3 text-center mt-6">
+        <p className="text-xs text-muted-foreground">Developed as an academic mini project under <span className="text-foreground/60 font-medium">REVA University</span>.</p>
+      </footer>
     </div>
   );
 }

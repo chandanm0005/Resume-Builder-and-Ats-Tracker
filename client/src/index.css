@@ -4,7 +4,7 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-  --font-sans: 'Plus Jakarta Sans', sans-serif;
+  --font-sans: 'Inter', 'Plus Jakarta Sans', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -30,86 +30,69 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-  
-  --color-sidebar: hsl(var(--sidebar));
-  --color-sidebar-foreground: hsl(var(--sidebar-foreground));
-  --color-sidebar-primary: hsl(var(--sidebar-primary));
-  --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
-  --color-sidebar-accent: hsl(var(--sidebar-accent));
-  --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
-  --color-sidebar-border: hsl(var(--sidebar-border));
-  --color-sidebar-ring: hsl(var(--sidebar-ring));
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 0.5rem;
 }
 
-/* Enforce Dark Theme for this AI App */
 .dark, :root {
-  --background: 240 10% 4%;
-  --foreground: 0 0% 98%;
+  --background: 222 20% 6%;
+  --foreground: 210 20% 94%;
 
-  --card: 240 10% 6%;
-  --card-foreground: 0 0% 98%;
+  --card: 222 18% 9%;
+  --card-foreground: 210 20% 94%;
 
-  --popover: 240 10% 6%;
-  --popover-foreground: 0 0% 98%;
+  --popover: 222 18% 9%;
+  --popover-foreground: 210 20% 94%;
 
-  /* Purple primary */
-  --primary: 262 83% 58%;
-  --primary-foreground: 210 20% 98%;
+  --primary: 258 80% 62%;
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 240 4% 16%;
-  --secondary-foreground: 0 0% 98%;
+  --secondary: 222 14% 14%;
+  --secondary-foreground: 210 20% 90%;
 
-  --muted: 240 5% 16%;
-  --muted-foreground: 240 5% 65%;
+  --muted: 222 14% 13%;
+  --muted-foreground: 215 12% 52%;
 
-  /* Cyan accent for AI elements */
-  --accent: 190 90% 60%;
-  --accent-foreground: 240 6% 10%;
+  --accent: 196 80% 55%;
+  --accent-foreground: 222 20% 6%;
 
-  --destructive: 0 62% 30%;
-  --destructive-foreground: 0 0% 98%;
+  --destructive: 0 65% 48%;
+  --destructive-foreground: 0 0% 100%;
 
-  --border: 240 5% 16%;
-  --input: 240 5% 16%;
-  --ring: 262 83% 58%;
-
-  --sidebar: 240 10% 6%;
-  --sidebar-foreground: 240 5% 96%;
-  --sidebar-primary: 262 83% 58%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 240 4% 16%;
-  --sidebar-accent-foreground: 240 5% 96%;
-  --sidebar-border: 240 5% 16%;
-  --sidebar-ring: 262 83% 58%;
+  --border: 222 14% 14%;
+  --input: 222 14% 12%;
+  --ring: 258 80% 62%;
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+  * { @apply border-border; }
   body {
-    @apply font-sans antialiased bg-background text-foreground;
-    /* Soft noise texture */
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.02'/%3E%3C/svg%3E");
+    @apply font-sans antialiased bg-background text-foreground text-sm;
+  }
+  h1 { @apply text-2xl font-semibold tracking-tight; }
+  h2 { @apply text-lg font-semibold tracking-tight; }
+  h3 { @apply text-base font-medium; }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-card/60 backdrop-blur-md border border-white/[0.06] shadow-xl;
+  }
+  .glass-hover {
+    @apply transition-all duration-200 hover:border-primary/25 hover:bg-card/80;
+  }
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+  .score-ring {
+    @apply relative inline-flex items-center justify-center;
   }
 }
 
-/* Custom utility for glassmorphism panels */
-@layer utilities {
-  .glass-panel {
-    @apply bg-card/40 backdrop-blur-xl border border-white/5 shadow-2xl;
-  }
-  .floating-card {
-    @apply transition-all duration-300 hover:-translate-y-1 hover:shadow-primary/20 hover:border-primary/30;
-  }
-  .ai-gradient-text {
-    @apply bg-gradient-to-r from-primary via-[#8b5cf6] to-accent bg-clip-text text-transparent;
-  }
-  .ai-gradient-bg {
-    @apply bg-gradient-to-br from-primary/20 via-background to-accent/10;
-  }
-}
+/* Compact scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { @apply bg-white/10 rounded-full; }
+::-webkit-scrollbar-thumb:hover { @apply bg-white/20; }

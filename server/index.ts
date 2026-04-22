@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { createServer as createNetServer } from "net";
 
 const app = express();
 const httpServer = createServer(app);
@@ -85,16 +86,56 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || "5000", 10);
+  // Respect explicit PORT in production. In development, prefer a stable default
+  // and probe nearby ports to avoid crashing on EADDRINUSE.
+  const requestedPort = process.env.PORT
+    ? parseInt(process.env.PORT, 10)
+    : undefined;
+  if (requestedPort !== undefined && Number.isNaN(requestedPort)) {
+    throw new Error(`Invalid PORT value: ${process.env.PORT}`);
+  }
+
+  const isDevelopment = process.env.NODE_ENV !== "production";
+  const initialPort = requestedPort ?? (isDevelopment ? 5030 : 5000);
+  const maxRetries = requestedPort
+    ? (isDevelopment ? 20 : 0)
+    : 20;
+
+  const isPortAvailable = (port: number) =>
+    new Promise<boolean>((resolve) => {
+      const tester = createNetServer();
+
+      tester.once("error", (err: NodeJS.ErrnoException) => {
+        resolve(false);
+      });
+
+      tester.once("listening", () => {
+        tester.close(() => resolve(true));
+      });
+
+      tester.listen({ port, host: "0.0.0.0" });
+    });
+
+  let port = initialPort;
+  if (maxRetries > 0) {
+    while (port <= initialPort + maxRetries) {
+      const available = await isPortAvailable(port);
+      if (available) {
+        break;
+      }
+
+      const nextPort = port + 1;
+      if (nextPort <= initialPort + maxRetries) {
+        log(`port ${port} in use, retrying on ${nextPort}`);
+      }
+      port = nextPort;
+    }
+  }
+
   httpServer.listen(
     {
       port,
       host: "0.0.0.0",
-      reusePort: true,
     },
     () => {
       log(`serving on port ${port}`);
