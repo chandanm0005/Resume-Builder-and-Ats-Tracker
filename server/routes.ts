@@ -315,11 +315,41 @@ export async function registerRoutes(
     }
   });
 
-  // put application routes here
-  // prefix all routes with /api
+  // ── Resume CRUD ──────────────────────────────────────────────────────────────
+  app.get("/api/resumes", async (req, res) => {
+    if (!req.isAuthenticated?.()) return res.status(401).json({ message: "Not authenticated" });
+    const resumes = await storage.getResumesByUser(req.user!.id);
+    return res.json(resumes);
+  });
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  app.post("/api/resumes", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated?.()) return res.status(401).json({ message: "Not authenticated" });
+      const { name, data } = req.body as { name?: string; data: any };
+      if (!data) return res.status(400).json({ message: "Resume data is required" });
+      const resume = await storage.createResume({ userId: req.user!.id, name: name || "Untitled Resume", data });
+      return res.status(201).json(resume);
+    } catch (e) { return next(e); }
+  });
+
+  app.put("/api/resumes/:id", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated?.()) return res.status(401).json({ message: "Not authenticated" });
+      const { name, data } = req.body as { name?: string; data?: any };
+      const updated = await storage.updateResume(req.params.id, req.user!.id, { name, data });
+      if (!updated) return res.status(404).json({ message: "Resume not found" });
+      return res.json(updated);
+    } catch (e) { return next(e); }
+  });
+
+  app.delete("/api/resumes/:id", async (req, res, next) => {
+    try {
+      if (!req.isAuthenticated?.()) return res.status(401).json({ message: "Not authenticated" });
+      const ok = await storage.deleteResume(req.params.id, req.user!.id);
+      if (!ok) return res.status(404).json({ message: "Resume not found" });
+      return res.json({ ok: true });
+    } catch (e) { return next(e); }
+  });
 
   return httpServer;
 }

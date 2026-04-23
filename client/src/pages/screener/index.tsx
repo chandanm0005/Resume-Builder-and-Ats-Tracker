@@ -2,44 +2,9 @@ import { Navbar } from "@/components/layout/Navbar";
 import { useState, useRef } from "react";
 import { Upload, FileText, BarChart2, CheckCircle2, AlertTriangle, Zap, RotateCcw, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { extractTextFromFile } from "@/lib/pdf-reader";
 
-async function extractPDF(file: File): Promise<string> {
-  try {
-    const pdfjsLib = await import("pdfjs-dist");
-    pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-    const buffer = await file.arrayBuffer();
-    const pdf = await (pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true, disableFontFace: true } as any)).promise;
-    const pages: string[] = [];
-    for (let i = 1; i <= pdf.numPages; i++) {
-      const page = await pdf.getPage(i);
-      const tc = await page.getTextContent();
-      const rows = new Map<number, { x: number; str: string }[]>();
-      for (const item of tc.items as any[]) {
-        if (!item.str?.trim()) continue;
-        const y = Math.round((item.transform?.[5] ?? 0) / 2) * 2;
-        if (!rows.has(y)) rows.set(y, []);
-        rows.get(y)!.push({ x: item.transform?.[4] ?? 0, str: item.str });
-      }
-      pages.push(Array.from(rows.entries()).sort((a,b)=>b[0]-a[0]).map(([,items])=>items.sort((a,b)=>a.x-b.x).map(i=>i.str).join(" ")).join("\n"));
-    }
-    return pages.join("\n").trim();
-  } catch(e) { console.error("PDF:",e); return ""; }
-}
-
-async function extractDOCX(file: File): Promise<string> {
-  try {
-    const mammoth = await import("mammoth");
-    const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-    return result.value?.trim() ?? "";
-  } catch(e) { console.error("DOCX:",e); return ""; }
-}
-
-async function extractFile(file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") return extractPDF(file);
-  if (ext === "docx" || ext === "doc") return extractDOCX(file);
-  try { return (await file.text()).trim(); } catch { return ""; }
-}
+// PDF/DOCX extraction handled by shared lib/pdf-reader.ts
 
 // ── Smart JD keyword extraction ─────────────────────────────────────────────
 // Strategy: only extract things that are actually skills/tools/qualifications
@@ -234,7 +199,7 @@ export default function ScreenerPage() {
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setFileName(file.name);
-    const text = await extractFile(file);
+    const text = await extractTextFromFile(file);
     setResumeText(text); setUploading(false);
     if (!text.trim()) toast({ title:"Could not read file", description:"File may be image-based. Paste resume text below.", variant:"destructive" });
     else toast({ title:"Resume loaded", description:text.split(/\s+/).filter(Boolean).length + " words extracted" });

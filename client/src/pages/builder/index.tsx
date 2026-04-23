@@ -1,35 +1,15 @@
 import { Navbar } from "@/components/layout/Navbar";
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Sparkles, Plus, Trash2, Download, Eye, EyeOff, FileUp } from "lucide-react";
+import { Sparkles, Plus, Trash2, Download, Eye, EyeOff, FileUp, X, LogIn, UserPlus } from "lucide-react";
 import { ResumePreview } from "./ResumePreview";
 import { downloadResumePDF } from "./pdf-export";
+import { useAuth } from "@/lib/auth";
+import { useQueryClient } from "@tanstack/react-query";
+import { extractTextFromFile } from "@/lib/pdf-reader";
 
 async function parseResumeFile(file: File): Promise<string> {
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-  if (ext === "pdf") {
-    try {
-      const pdfjsLib = await import("pdfjs-dist");
-      pdfjsLib.GlobalWorkerOptions.workerSrc = "";
-      const buffer = await file.arrayBuffer();
-      const pdf = await (pdfjsLib.getDocument({ data: new Uint8Array(buffer), useWorkerFetch: false, isEvalSupported: false, useSystemFonts: true, disableFontFace: true } as any)).promise;
-      const pages: string[] = [];
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const tc = await page.getTextContent();
-        pages.push(tc.items.map((item: any) => item.str ?? "").join(" "));
-      }
-      return pages.join("\n").trim();
-    } catch { return ""; }
-  }
-  if (ext === "docx" || ext === "doc") {
-    try {
-      const mammoth = await import("mammoth");
-      const result = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() });
-      return result.value?.trim() ?? "";
-    } catch { return ""; }
-  }
-  try { return (await file.text()).trim(); } catch { return ""; }
+  return extractTextFromFile(file);
 }
 
 function extractPersonalInfo(text: string) {
@@ -86,16 +66,25 @@ export type Project = { id: number; title: string; technologies: string; descrip
 export type Education = { id: number; school: string; degree: string; year: string; score: string };
 export type ResumeData = { personalInfo: PersonalInfo; experiences: Experience[]; projects: Project[]; education: Education[]; template: string; };
 
-const TEMPLATES = [{ id:"modern",label:"Modern" },{ id:"classic",label:"Classic" },{ id:"minimal",label:"Minimal" },{ id:"executive",label:"Executive" },{ id:"compact",label:"Compact" }];
+const TEMPLATES = [{ id:"modern",label:"Modern" },{ id:"classic",label:"Classic" },{ id:"minimal",label:"Minimal" },{ id:"executive",label:"Executive" },{ id:"compact",label:"Compact" },{ id:"academic",label:"Academic" }];
 
 export default function BuilderPage() {
   const { toast } = useToast();
+  const { isAuthenticated, user } = useAuth();
+  const queryClient = useQueryClient();
   const [showPreview, setShowPreview] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState("modern");
   const [isDownloading, setIsDownloading] = useState(false);
   const [activeSection, setActiveSection] = useState<string>("upload");
   const [isImporting, setIsImporting] = useState(false);
   const [enhancing, setEnhancing] = useState<string | null>(null);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [authMode, setAuthMode] = useState<"login"|"register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authName, setAuthName] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const importRef = useRef<HTMLInputElement>(null);
 
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ name:"",headline:"",email:"",phone:"",location:"",linkedin:"",github:"",summary:"",skills:"",achievements:"",certifications:"" });
@@ -139,28 +128,130 @@ export default function BuilderPage() {
     if (importRef.current) importRef.current.value = "";
   };
 
-  const handleDownload = async () => {
-    if (!personalInfo.name.trim()) { toast({ title:"Name required", variant:"destructive" }); return; }
+  const saveResume = async () => {
+    try {
+      await fetch("/api/resumes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ name: personalInfo.name || "My Resume", data: resumeData }),
+      });
+    } catch { /* silent */ }
+  };
+
+  const doDownload = async () => {
+    if (!personalInfo.name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
     setIsDownloading(true);
-    try { await downloadResumePDF(resumeData); toast({ title:"Downloaded!" }); }
-    catch { toast({ title:"Download failed", variant:"destructive" }); }
+    setShowDownloadModal(false);
+    try {
+      await downloadResumePDF(resumeData);
+      if (isAuthenticated) await saveResume();
+      toast({ title: "Downloaded!", description: isAuthenticated ? "Resume saved to your account." : "Sign in to save resumes." });
+    } catch { toast({ title: "Download failed", variant: "destructive" }); }
     finally { setIsDownloading(false); }
   };
 
-  const sections = [{ id:"upload",label:"Import" },{ id:"personal",label:"Personal" },{ id:"experience",label:"Experience" },{ id:"projects",label:"Projects" },{ id:"education",label:"Education" },{ id:"skills",label:"Skills & More" }];
+  const handleDownloadClick = () => {
+    if (!personalInfo.name.trim()) { toast({ title: "Name required", variant: "destructive" }); return; }
+    if (isAuthenticated) { doDownload(); return; }
+    setShowDownloadModal(true);
+  };
+
+  const handleModalAuth = async () => {
+    setAuthError("");
+    if (!authEmail.trim() || !authPassword) { setAuthError("Email and password required."); return; }
+    if (authMode === "register" && authPassword.length < 8) { setAuthError("Password must be at least 8 characters."); return; }
+    setAuthLoading(true);
+    try {
+      const res = await fetch(authMode === "register" ? "/api/auth/register" : "/api/auth/login", {
+        method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include",
+        body: JSON.stringify({ email: authEmail, password: authPassword, displayName: authName }),
+      });
+      const d = await res.json().catch(() => ({})) as { message?: string };
+      if (!res.ok) { setAuthError(d.message || "Authentication failed."); return; }
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      toast({ title: authMode === "register" ? "Account created!" : "Signed in!" });
+      doDownload();
+    } finally { setAuthLoading(false); }
+  };
+
+  const sections = [
+    { id: "upload", label: "Import" },
+    { id: "personal", label: "Personal" },
+    { id: "experience", label: "Experience" },
+    { id: "projects", label: "Projects" },
+    { id: "education", label: "Education" },
+    { id: "skills", label: "Skills & More" },
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
+
+      {/* ── Download / Auth Modal ─────────────────────────────────────────── */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="glass rounded-xl p-6 w-full max-w-sm mx-4 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Save & Download Resume</h2>
+              <button onClick={() => setShowDownloadModal(false)} className="text-muted-foreground hover:text-foreground transition-colors"><X className="w-4 h-4" /></button>
+            </div>
+            <p className="text-xs text-muted-foreground">Sign in to save your resume to your account, or continue as guest to just download.</p>
+
+            {/* Mode toggle */}
+            <div className="flex rounded-md overflow-hidden border border-white/[0.08]">
+              <button onClick={() => setAuthMode("login")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${authMode==="login" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <LogIn className="w-3 h-3" /> Sign In
+              </button>
+              <button onClick={() => setAuthMode("register")} className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 text-xs font-medium transition-colors ${authMode==="register" ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                <UserPlus className="w-3 h-3" /> Register
+              </button>
+            </div>
+
+            {authMode === "register" && (
+              <input value={authName} onChange={e => setAuthName(e.target.value)} placeholder="Your name"
+                className="w-full px-2.5 py-1.5 rounded-md bg-input border border-white/[0.08] text-xs focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            )}
+            <input type="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="Email"
+              className="w-full px-2.5 py-1.5 rounded-md bg-input border border-white/[0.08] text-xs focus:outline-none focus:ring-1 focus:ring-primary/50" />
+            <input type="password" value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="Password (min 8 chars)"
+              onKeyDown={e => e.key === "Enter" && handleModalAuth()}
+              className="w-full px-2.5 py-1.5 rounded-md bg-input border border-white/[0.08] text-xs focus:outline-none focus:ring-1 focus:ring-primary/50" />
+
+            {authError && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded px-2.5 py-1.5">{authError}</p>}
+
+            <button onClick={handleModalAuth} disabled={authLoading}
+              className="w-full py-2 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+              {authLoading ? "Please wait..." : authMode === "register" ? "Create Account & Download" : "Sign In & Download"}
+            </button>
+
+            <div className="relative flex items-center gap-2">
+              <div className="flex-1 h-px bg-white/[0.08]" />
+              <span className="text-xs text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-white/[0.08]" />
+            </div>
+
+            <button onClick={doDownload} className="w-full py-2 rounded-md text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+              Continue as Guest (Download only)
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 max-w-7xl mx-auto w-full px-4 py-4">
         <div className="flex items-center justify-between mb-4">
-          <div><h1 className="text-base font-semibold">Resume Builder</h1><p className="text-xs text-muted-foreground">Build and download your resume as PDF</p></div>
+          <div>
+            <h1 className="text-base font-semibold">Resume Builder</h1>
+            <p className="text-xs text-muted-foreground">
+              {isAuthenticated ? `Signed in as ${user?.displayName || user?.email} — resumes auto-saved` : "Build and download your resume as PDF"}
+            </p>
+          </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowPreview(!showPreview)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
               {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               {showPreview ? "Hide Preview" : "Preview"}
             </button>
-            <button onClick={handleDownload} disabled={isDownloading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+            <button onClick={handleDownloadClick} disabled={isDownloading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
               <Download className="w-3.5 h-3.5" />
               {isDownloading ? "Generating..." : "Download PDF"}
             </button>

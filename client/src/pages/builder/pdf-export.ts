@@ -1,206 +1,323 @@
+import { jsPDF } from "jspdf";
 import type { ResumeData } from "./index";
 
-function bullets(text: string) {
-  return text.split("\n").map(l => l.trim()).filter(Boolean);
+function buls(text: string) {
+  return text.split("\n").map(l => l.replace(/^[•\-*]\s*/, "").trim()).filter(Boolean);
 }
-function skillList(text: string) {
+function skills(text: string) {
   return text.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
 }
 
-/* Renders resume HTML into a hidden iframe and uses browser print to PDF */
+// Colors per template
+const THEME: Record<string, { accent: [number,number,number]; heading: [number,number,number]; sub: [number,number,number] }> = {
+  modern:    { accent: [109, 40, 217], heading: [109, 40, 217], sub: [85, 85, 85] },
+  classic:   { accent: [30,  30,  30], heading: [30,  30,  30], sub: [80, 80, 80] },
+  minimal:   { accent: [150,150,150], heading: [30,  30,  30], sub: [120,120,120] },
+  executive: { accent: [30,  41,  59], heading: [30,  41,  59], sub: [71, 85,105] },
+  compact:   { accent: [15,  23,  42], heading: [15,  23,  42], sub: [71, 85,105] },
+  academic:  { accent: [17,  17,  17], heading: [17,  17,  17], sub: [60, 60, 60] },
+};
+
 export async function downloadResumePDF(data: ResumeData): Promise<void> {
-  const html = buildResumeHTML(data);
-
-  return new Promise((resolve, reject) => {
-    const iframe = document.createElement("iframe");
-    iframe.style.position = "fixed";
-    iframe.style.top = "-9999px";
-    iframe.style.left = "-9999px";
-    iframe.style.width = "210mm";
-    iframe.style.height = "297mm";
-    iframe.style.border = "none";
-    document.body.appendChild(iframe);
-
-    const doc = iframe.contentDocument || iframe.contentWindow?.document;
-    if (!doc) { reject(new Error("iframe unavailable")); return; }
-
-    doc.open();
-    doc.write(html);
-    doc.close();
-
-    setTimeout(() => {
-      try {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          resolve();
-        }, 1000);
-      } catch (e) {
-        document.body.removeChild(iframe);
-        reject(e);
-      }
-    }, 600);
-  });
-}
-
-function buildResumeHTML(data: ResumeData): string {
   const { personalInfo: p, experiences, projects, education, template } = data;
+  const theme = THEME[template] ?? THEME.modern;
 
-  const styles = getStyles(template);
-  const body = getBody(data);
+  const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+  const W = 210;
+  const marginL = 14;
+  const marginR = 14;
+  const contentW = W - marginL - marginR;
+  let y = 14;
 
-  return `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8"/>
-<title>${p.name || "Resume"}</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  @page { size: A4; margin: 0; }
-  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  ${styles}
-</style>
-</head>
-<body>${body}</body>
-</html>`;
-}
+  // ── helpers ──────────────────────────────────────────────────────────────────
+  const checkPage = (needed = 6) => {
+    if (y + needed > 280) { doc.addPage(); y = 14; }
+  };
 
-function getStyles(template: string): string {
-  const base = `
-    body { font-family: Arial, sans-serif; font-size: 10px; color: #1a1a1a; background: #fff; line-height: 1.5; }
-    .page { padding: 28px 34px; min-height: 297mm; }
-    .name { font-size: 22px; font-weight: 700; }
-    .headline { font-size: 10px; color: #555; margin-top: 2px; }
-    .contact { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 5px; font-size: 9px; color: #444; }
-    .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; padding-bottom: 2px; margin-bottom: 6px; margin-top: 12px; }
-    .entry { margin-bottom: 10px; }
-    .entry-header { display: flex; justify-content: space-between; }
-    .entry-title { font-weight: 600; }
-    .entry-sub { font-size: 9px; color: #555; margin-bottom: 3px; }
-    .entry-date { font-size: 9px; color: #666; }
-    .bullet { padding-left: 10px; color: #333; margin-bottom: 1px; }
-    .skill-tag { display: inline-block; padding: 2px 7px; border-radius: 3px; font-size: 9px; margin: 2px; }
-  `;
+  const setColor = (rgb: [number,number,number]) => doc.setTextColor(rgb[0], rgb[1], rgb[2]);
 
-  if (template === "classic") return base + `
-    body { font-family: Georgia, serif; }
-    .name { font-size: 20px; text-align: center; text-transform: uppercase; letter-spacing: 2px; }
-    .headline { text-align: center; font-style: italic; }
-    .contact { justify-content: center; }
-    .header { border-bottom: 1px solid #333; padding-bottom: 10px; margin-bottom: 12px; }
-    .section-title { border-bottom: 1px solid #333; }
-    .entry-sub { font-style: italic; }
-  `;
+  const text = (str: string, x: number, size: number, style: "normal"|"bold"|"italic" = "normal", color: [number,number,number] = [26,26,26]) => {
+    doc.setFontSize(size);
+    doc.setFont("helvetica", style);
+    setColor(color);
+    doc.text(str, x, y);
+  };
 
-  if (template === "minimal") return base + `
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; }
-    .name { font-size: 24px; font-weight: 300; letter-spacing: -1px; }
-    .section-title { font-size: 9px; color: #9ca3af; letter-spacing: 1.5px; border-bottom: none; }
-    .bullet { border-left: 2px solid #e5e7eb; padding-left: 8px; margin-left: 2px; }
-  `;
+  const wrappedText = (str: string, x: number, maxW: number, size: number, style: "normal"|"bold"|"italic" = "normal", color: [number,number,number] = [51,51,51]) => {
+    const font = template === "academic" ? "times" : "helvetica";
+    doc.setFontSize(size);
+    doc.setFont(font, style);
+    setColor(color);
+    const lines = doc.splitTextToSize(str, maxW) as string[];
+    for (const line of lines) {
+      checkPage(5);
+      doc.text(line, x, y);
+      y += size * 0.45;
+    }
+    y += 1;
+  };
 
-  if (template === "executive") return base + `
-    .page { padding: 0; }
-    .header { background: #1e293b; color: #fff; padding: 22px 34px 18px; }
-    .header .name { color: #fff; }
-    .header .headline { color: #94a3b8; }
-    .header .contact { color: #cbd5e1; }
-    .content { padding: 18px 34px; }
-    .section-title { background: #f8fafc; padding: 3px 6px; border-left: 3px solid #1e293b; color: #1e293b; }
-    .bullet { padding-left: 12px; }
-    .bullet::before { content: "▸ "; }
-    .skill-tag { background: #f1f5f9; border: 1px solid #e2e8f0; color: #334155; }
-  `;
+  const sectionTitle = (title: string) => {
+    checkPage(8);
+    y += 3;
+    const font = template === "academic" ? "times" : "helvetica";
+    doc.setFontSize(template === "academic" ? 11 : 8);
+    doc.setFont(font, "bold");
+    setColor(theme.heading);
+    // Academic: small-caps style — uppercase the title
+    const display = template === "academic" ? title.toUpperCase() : title.toUpperCase();
+    doc.text(display, marginL, y);
+    doc.setDrawColor(theme.heading[0], theme.heading[1], theme.heading[2]);
+    doc.setLineWidth(template === "academic" ? 0.4 : 0.3);
+    doc.line(marginL, y + 0.8, W - marginR, y + 0.8);
+    y += 5;
+  };
 
-  if (template === "compact") return base + `
-    body { font-size: 9.5px; }
-    .page { padding: 22px 28px; }
-    .name { font-size: 18px; }
-    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0f172a; padding-bottom: 8px; margin-bottom: 10px; }
-    .header-right { text-align: right; font-size: 8.5px; color: #475569; line-height: 1.7; }
-    .section-title { font-size: 9px; color: #0f172a; }
-  `;
+  const bullet = (str: string) => {
+    checkPage(5);
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    setColor([51, 51, 51]);
+    const lines = doc.splitTextToSize(str, contentW - 5) as string[];
+    doc.text("•", marginL + 1, y);
+    doc.text(lines[0], marginL + 5, y);
+    y += 4;
+    for (let i = 1; i < lines.length; i++) {
+      checkPage(4);
+      doc.text(lines[i], marginL + 5, y);
+      y += 4;
+    }
+  };
 
-  // modern (default)
-  return base + `
-    .header { border-bottom: 2px solid #6d28d9; padding-bottom: 10px; margin-bottom: 12px; }
-    .name { color: #6d28d9; }
-    .section-title { color: #6d28d9; border-bottom: 1px solid #ede9fe; }
-    .skill-tag { background: #ede9fe; color: #5b21b6; }
-  `;
-}
+  // ── HEADER ───────────────────────────────────────────────────────────────────
+  if (template === "academic") {
+    // Centered name, contact row below
+    doc.setFontSize(20);
+    doc.setFont("times", "bold");
+    setColor([17, 17, 17]);
+    const nameW = doc.getTextWidth(p.name || "Your Name");
+    doc.text(p.name || "Your Name", (W - nameW) / 2, y);
+    y += 7;
+    if (p.headline) {
+      doc.setFontSize(9);
+      doc.setFont("times", "italic");
+      setColor([60, 60, 60]);
+      const hw = doc.getTextWidth(p.headline);
+      doc.text(p.headline, (W - hw) / 2, y);
+      y += 5;
+    }
+    const contacts = [p.phone, p.email, p.linkedin, p.github, p.location].filter(Boolean);
+    if (contacts.length) {
+      doc.setFontSize(8.5);
+      doc.setFont("times", "normal");
+      setColor([51, 51, 51]);
+      const contactStr = contacts.join("  |  ");
+      const cw = doc.getTextWidth(contactStr);
+      doc.text(contactStr, (W - cw) / 2, y);
+      y += 6;
+    }
+  } else if (template === "executive") {
+    // Dark header bar
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, W, 32, "F");
+    doc.setFontSize(18);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(p.name || "Your Name", marginL, 13);
+    if (p.headline) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(148, 163, 184);
+      doc.text(p.headline, marginL, 19);
+    }
+    const contacts = [p.email, p.phone, p.location, p.linkedin, p.github].filter(Boolean);
+    doc.setFontSize(8);
+    doc.setTextColor(203, 213, 225);
+    doc.text(contacts.join("   "), marginL, 27);
+    y = 38;
+  } else if (template === "compact") {
+    // Two-column header
+    doc.setFontSize(16);
+    doc.setFont("helvetica", "bold");
+    setColor(theme.heading);
+    doc.text(p.name || "Your Name", marginL, y);
+    if (p.headline) {
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      setColor([100, 116, 139]);
+      doc.text(p.headline, marginL, y + 5);
+    }
+    const contacts = [p.email, p.phone, p.location, p.linkedin, p.github].filter(Boolean);
+    doc.setFontSize(7.5);
+    setColor([71, 85, 105]);
+    let cx = W - marginR;
+    for (const c of contacts.reverse()) {
+      const cw = doc.getTextWidth(c);
+      doc.text(c, cx - cw, y);
+      y += 4;
+    }
+    y = 22;
+    doc.setDrawColor(15, 23, 42);
+    doc.setLineWidth(0.5);
+    doc.line(marginL, y, W - marginR, y);
+    y += 5;
+  } else {
+    // Standard header
+    doc.setFontSize(template === "minimal" ? 22 : 20);
+    doc.setFont("helvetica", template === "minimal" ? "normal" : "bold");
+    setColor(theme.heading);
+    doc.text(p.name || "Your Name", marginL, y);
+    y += 6;
+    if (p.headline) {
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "italic");
+      setColor(theme.sub);
+      doc.text(p.headline, marginL, y);
+      y += 5;
+    }
+    const contacts = [p.email, p.phone, p.location, p.linkedin, p.github].filter(Boolean);
+    if (contacts.length) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      setColor([68, 68, 68]);
+      doc.text(contacts.join("   "), marginL, y);
+      y += 4;
+    }
+    // Divider
+    doc.setDrawColor(theme.accent[0], theme.accent[1], theme.accent[2]);
+    doc.setLineWidth(template === "modern" ? 0.5 : 0.2);
+    doc.line(marginL, y, W - marginR, y);
+    y += 5;
+  }
 
-function getBody(data: ResumeData): string {
-  const { personalInfo: p, experiences, projects, education, template } = data;
-  const isExec = template === "executive";
-  const isCompact = template === "compact";
-  const isClassic = template === "classic";
+  // ── SUMMARY ──────────────────────────────────────────────────────────────────
+  if (p.summary?.trim()) {
+    sectionTitle(template === "classic" ? "Objective" : template === "executive" ? "Executive Summary" : "Summary");
+    wrappedText(p.summary, marginL, contentW, 8.5);
+  }
 
-  const contactItems = [p.email, p.phone, p.location, p.linkedin, p.github].filter(Boolean);
-  const contactHTML = `<div class="contact">${contactItems.map(c => `<span>${c}</span>`).join("")}</div>`;
-
-  const headerHTML = isExec
-    ? `<div class="header"><div class="name">${p.name || "Your Name"}</div>${p.headline ? `<div class="headline">${p.headline}</div>` : ""}${contactHTML}</div>`
-    : isCompact
-    ? `<div class="header"><div><div class="name">${p.name || "Your Name"}</div>${p.headline ? `<div class="headline">${p.headline}</div>` : ""}</div><div class="header-right">${contactItems.map(c => `<div>${c}</div>`).join("")}</div></div>`
-    : `<div class="header"><div class="name">${p.name || "Your Name"}</div>${p.headline ? `<div class="headline">${p.headline}</div>` : ""}${contactHTML}</div>`;
-
-  const wrapContent = (html: string) => isExec ? `<div class="content">${html}</div>` : html;
-
-  const sectionTitle = (t: string) => `<div class="section-title">${t}</div>`;
-
-  let content = "";
-
-  if (p.summary) content += `${sectionTitle(isClassic ? "Objective" : isExec ? "Executive Summary" : "Summary")}<p style="color:#333;margin-bottom:4px">${p.summary}</p>`;
-
-  if (p.skills) {
-    const sl = skillList(p.skills);
-    const isMin = template === "minimal";
-    const isComp = template === "compact";
-    content += sectionTitle(isExec ? "Core Competencies" : "Skills");
-    if (isMin || isComp) {
-      content += `<p style="color:#334155">${sl.join(isComp ? " | " : "  ·  ")}</p>`;
+  // ── SKILLS ───────────────────────────────────────────────────────────────────
+  if (p.skills?.trim()) {
+    sectionTitle(template === "executive" ? "Core Competencies" : "Skills");
+    const sl = skills(p.skills);
+    if (template === "minimal" || template === "compact") {
+      wrappedText(sl.join("  ·  "), marginL, contentW, 8.5);
     } else {
-      content += `<div>${sl.map(s => `<span class="skill-tag">${s}</span>`).join("")}</div>`;
+      // Skill tags in rows
+      let sx = marginL;
+      const tagH = 5;
+      const tagPad = 3;
+      for (const s of sl) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        const tw = doc.getTextWidth(s) + tagPad * 2;
+        if (sx + tw > W - marginR) { sx = marginL; y += tagH + 2; checkPage(tagH + 2); }
+        doc.setFillColor(237, 233, 254);
+        doc.setDrawColor(237, 233, 254);
+        doc.roundedRect(sx, y - 3.5, tw, tagH, 1, 1, "F");
+        doc.setTextColor(91, 33, 182);
+        doc.text(s, sx + tagPad, y);
+        sx += tw + 2;
+      }
+      y += 7;
     }
   }
 
+  // ── EXPERIENCE ───────────────────────────────────────────────────────────────
   const validExp = experiences.filter(e => e.title || e.company);
   if (validExp.length) {
-    content += sectionTitle(isExec ? "Professional Experience" : isClassic ? "Work Experience" : "Experience");
-    validExp.forEach(exp => {
-      const buls = bullets(exp.description).map(b => `<div class="bullet">${template === "classic" ? "– " : "• "}${b.replace(/^[•\-]\s*/, "")}</div>`).join("");
-      content += `<div class="entry"><div class="entry-header"><span class="entry-title">${exp.title}</span><span class="entry-date">${exp.duration}</span></div><div class="entry-sub">${exp.company}</div>${buls}</div>`;
-    });
+    sectionTitle(template === "executive" ? "Professional Experience" : template === "classic" ? "Work Experience" : "Experience");
+    for (const exp of validExp) {
+      checkPage(10);
+      // Title + date on same line
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      setColor([26, 26, 26]);
+      doc.text(exp.title || "", marginL, y);
+      if (exp.duration) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        setColor([102, 102, 102]);
+        const dw = doc.getTextWidth(exp.duration);
+        doc.text(exp.duration, W - marginR - dw, y);
+      }
+      y += 4;
+      if (exp.company) {
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "italic");
+        setColor(theme.sub);
+        doc.text(exp.company, marginL, y);
+        y += 4;
+      }
+      for (const b of buls(exp.description)) bullet(b);
+      y += 2;
+    }
   }
 
-  const validProj = projects.filter(pr => pr.title);
+  // ── PROJECTS ─────────────────────────────────────────────────────────────────
+  const validProj = projects.filter(p => p.title);
   if (validProj.length) {
-    content += sectionTitle(isExec ? "Key Projects" : "Projects");
-    validProj.forEach(proj => {
-      const buls = bullets(proj.description).map(b => `<div class="bullet">${template === "classic" ? "– " : "• "}${b.replace(/^[•\-]\s*/, "")}</div>`).join("");
-      content += `<div class="entry"><div class="entry-header"><span class="entry-title">${proj.title}</span><span class="entry-date" style="color:#6d28d9">${proj.technologies}</span></div>${buls}</div>`;
-    });
+    sectionTitle(template === "executive" ? "Key Projects" : "Projects");
+    for (const proj of validProj) {
+      checkPage(10);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      setColor([26, 26, 26]);
+      doc.text(proj.title, marginL, y);
+      if (proj.technologies) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        setColor(theme.accent);
+        const tw = doc.getTextWidth(proj.technologies);
+        doc.text(proj.technologies, W - marginR - tw, y);
+      }
+      y += 4;
+      for (const b of buls(proj.description)) bullet(b);
+      y += 2;
+    }
   }
 
+  // ── EDUCATION ────────────────────────────────────────────────────────────────
   const validEdu = education.filter(e => e.school);
   if (validEdu.length) {
-    content += sectionTitle("Education");
-    validEdu.forEach(edu => {
-      content += `<div class="entry"><div class="entry-header"><span class="entry-title">${edu.school}</span><span class="entry-date">${edu.year}</span></div><div class="entry-sub">${edu.degree}${edu.score ? ` | ${edu.score}` : ""}</div></div>`;
-    });
+    sectionTitle("Education");
+    for (const edu of validEdu) {
+      checkPage(8);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      setColor([26, 26, 26]);
+      doc.text(edu.school, marginL, y);
+      if (edu.year) {
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        setColor([102, 102, 102]);
+        const yw = doc.getTextWidth(edu.year);
+        doc.text(edu.year, W - marginR - yw, y);
+      }
+      y += 4;
+      const degLine = [edu.degree, edu.score].filter(Boolean).join("  |  ");
+      if (degLine) {
+        doc.setFontSize(8.5);
+        doc.setFont("helvetica", "normal");
+        setColor(theme.sub);
+        doc.text(degLine, marginL, y);
+        y += 4;
+      }
+      y += 1;
+    }
   }
 
-  if (p.achievements) {
-    content += sectionTitle("Achievements");
-    content += bullets(p.achievements).map(b => `<div class="bullet">• ${b.replace(/^[•\-]\s*/, "")}</div>`).join("");
+  // ── ACHIEVEMENTS ─────────────────────────────────────────────────────────────
+  if (p.achievements?.trim()) {
+    sectionTitle("Achievements");
+    for (const b of buls(p.achievements)) bullet(b);
   }
 
-  if (p.certifications) {
-    content += sectionTitle("Certifications");
-    content += bullets(p.certifications).map(b => `<div class="bullet">• ${b.replace(/^[•\-]\s*/, "")}</div>`).join("");
+  // ── CERTIFICATIONS ───────────────────────────────────────────────────────────
+  if (p.certifications?.trim()) {
+    sectionTitle("Certifications");
+    for (const b of buls(p.certifications)) bullet(b);
   }
 
-  return `<div class="page">${headerHTML}${wrapContent(content)}</div>`;
+  doc.save(`${p.name || "resume"}.pdf`);
 }

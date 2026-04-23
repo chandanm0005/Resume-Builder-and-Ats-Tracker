@@ -13,6 +13,7 @@ export function ResumePreview({ data }: { data: ResumeData }) {
   if (template === "minimal") return <MinimalTemplate data={data} />;
   if (template === "executive") return <ExecutiveTemplate data={data} />;
   if (template === "compact") return <CompactTemplate data={data} />;
+  if (template === "academic") return <AcademicTemplate data={data} />;
   return <ModernTemplate data={data} />;
 }
 
@@ -453,6 +454,126 @@ function CompSection({ title, children }: { title: string; children: React.React
   return (
     <div style={{ marginBottom: "10px" }}>
       <div style={{ fontSize: "9px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "#0f172a", marginBottom: "4px" }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+/* ─── ACADEMIC (Suraj-style) ──────────────────────────────────────────── */
+function AcademicTemplate({ data }: { data: ResumeData }) {
+  const { personalInfo: p, experiences, projects, education } = data;
+  const contacts = [p.phone, p.email, p.linkedin, p.github, p.location].filter(Boolean);
+
+  return (
+    <div id="resume-preview" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: "10px", color: "#111", background: "#fff", padding: "28px 40px", minHeight: "297mm", lineHeight: 1.55 }}>
+
+      {/* Centered name header */}
+      <div style={{ textAlign: "center", marginBottom: "4px" }}>
+        <div style={{ fontSize: "22px", fontWeight: 700, letterSpacing: "1px" }}>{p.name || "Your Name"}</div>
+        {p.headline && <div style={{ fontSize: "10px", color: "#444", marginTop: "2px", fontStyle: "italic" }}>{p.headline}</div>}
+        <div style={{ fontSize: "9px", color: "#333", marginTop: "5px", display: "flex", justifyContent: "center", flexWrap: "wrap", gap: "10px" }}>
+          {contacts.map((c, i) => <span key={i}>{c}</span>)}
+        </div>
+      </div>
+
+      {/* Education first (academic style) */}
+      {education.some(e => e.school) && (
+        <AcadSection title="Education">
+          {education.filter(e => e.school).map((edu, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: "10px" }}>{edu.school}</div>
+                <div style={{ fontStyle: "italic", fontSize: "9.5px", color: "#333" }}>{edu.degree}{edu.score ? `, CGPA: ${edu.score}` : ""}</div>
+              </div>
+              <div style={{ textAlign: "right", fontSize: "9px", color: "#333", whiteSpace: "nowrap" }}>
+                <div>{p.location || ""}</div>
+                <div>{edu.year}</div>
+              </div>
+            </div>
+          ))}
+        </AcadSection>
+      )}
+
+      {/* Experience */}
+      {experiences.some(e => e.title || e.company) && (
+        <AcadSection title="Experience">
+          {experiences.filter(e => e.title || e.company).map((exp, i) => (
+            <div key={i} style={{ marginBottom: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ fontWeight: 700, fontSize: "10px" }}>{exp.title}</span>
+                <span style={{ fontSize: "9px", color: "#333" }}>{exp.duration}</span>
+              </div>
+              <div style={{ fontStyle: "italic", fontSize: "9.5px", color: "#333", marginBottom: "3px" }}>{exp.company}</div>
+              {bullets(exp.description).map((b, j) => (
+                <div key={j} style={{ paddingLeft: "12px", fontSize: "9.5px", marginBottom: "2px" }}>• {b.replace(/^[•\-]\s*/, "")}</div>
+              ))}
+            </div>
+          ))}
+        </AcadSection>
+      )}
+
+      {/* Projects */}
+      {projects.some(pr => pr.title) && (
+        <AcadSection title="Projects">
+          {projects.filter(pr => pr.title).map((proj, i) => (
+            <div key={i} style={{ marginBottom: "8px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span>
+                  <span style={{ fontWeight: 700, fontSize: "10px", textDecoration: "underline" }}>{proj.title}</span>
+                  {proj.technologies && <span style={{ fontStyle: "italic", fontSize: "9px", color: "#333" }}> | {proj.technologies}</span>}
+                </span>
+              </div>
+              {bullets(proj.description).map((b, j) => (
+                <div key={j} style={{ paddingLeft: "12px", fontSize: "9.5px", marginBottom: "2px" }}>• {b.replace(/^[•\-]\s*/, "")}</div>
+              ))}
+            </div>
+          ))}
+        </AcadSection>
+      )}
+
+      {/* Achievements */}
+      {p.achievements && (
+        <AcadSection title="Achievements">
+          {bullets(p.achievements).map((b, i) => (
+            <div key={i} style={{ paddingLeft: "12px", fontSize: "9.5px", marginBottom: "2px" }}>• {b.replace(/^[•\-]\s*/, "")}</div>
+          ))}
+        </AcadSection>
+      )}
+
+      {/* Technical Skills */}
+      {p.skills && (
+        <AcadSection title="Technical Skills">
+          <div style={{ fontSize: "9.5px", color: "#111" }}>
+            <span style={{ fontWeight: 700 }}>Languages: </span>
+            {skills(p.skills).join(", ")}
+          </div>
+          {p.certifications && (
+            <div style={{ fontSize: "9.5px", color: "#111", marginTop: "3px" }}>
+              <span style={{ fontWeight: 700 }}>Certifications: </span>
+              {bullets(p.certifications).map(b => b.replace(/^[•\-]\s*/, "")).join(", ")}
+            </div>
+          )}
+        </AcadSection>
+      )}
+    </div>
+  );
+}
+
+function AcadSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: "10px" }}>
+      <div style={{
+        fontSize: "11px",
+        fontWeight: 700,
+        fontVariant: "small-caps",
+        letterSpacing: "0.5px",
+        borderBottom: "1px solid #111",
+        paddingBottom: "1px",
+        marginBottom: "6px",
+        marginTop: "10px",
+      }}>
+        {title}
+      </div>
       {children}
     </div>
   );
