@@ -66,7 +66,13 @@ export type Project = { id: number; title: string; technologies: string; descrip
 export type Education = { id: number; school: string; degree: string; year: string; score: string };
 export type ResumeData = { personalInfo: PersonalInfo; experiences: Experience[]; projects: Project[]; education: Education[]; template: string; };
 
-const TEMPLATES = [{ id:"modern",label:"Modern" },{ id:"classic",label:"Classic" },{ id:"minimal",label:"Minimal" },{ id:"executive",label:"Executive" },{ id:"compact",label:"Compact" },{ id:"academic",label:"Academic" }];
+const TEMPLATES = [
+  { id:"modern",   label:"Modern" },
+  { id:"executive",label:"Executive" },
+  { id:"academic", label:"Academic" },
+  { id:"twocol",   label:"Two-Column" },
+  { id:"clean",    label:"Clean" },
+];
 
 export default function BuilderPage() {
   const { toast } = useToast();
@@ -85,6 +91,7 @@ export default function BuilderPage() {
   const [authName, setAuthName] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [includeFooter, setIncludeFooter] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
 
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ name:"",headline:"",email:"",phone:"",location:"",linkedin:"",github:"",summary:"",skills:"",achievements:"",certifications:"" });
@@ -144,7 +151,7 @@ export default function BuilderPage() {
     setIsDownloading(true);
     setShowDownloadModal(false);
     try {
-      await downloadResumePDF(resumeData);
+      await downloadResumePDF(resumeData, includeFooter);
       if (isAuthenticated) await saveResume();
       toast({ title: "Downloaded!", description: isAuthenticated ? "Resume saved to your account." : "Sign in to save resumes." });
     } catch { toast({ title: "Download failed", variant: "destructive" }); }
@@ -234,6 +241,20 @@ export default function BuilderPage() {
             <button onClick={doDownload} className="w-full py-2 rounded-md text-xs font-medium bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
               Continue as Guest (Download only)
             </button>
+
+            {/* Footer toggle */}
+            <div className="flex items-center justify-between pt-1 border-t border-white/[0.06]">
+              <div>
+                <p className="text-xs font-medium">Include Declaration Footer</p>
+                <p className="text-xs text-muted-foreground">Adds "I hereby certify..." declaration at the end</p>
+              </div>
+              <button
+                onClick={() => setIncludeFooter(f => !f)}
+                className={`relative w-9 h-5 rounded-full transition-colors ${includeFooter ? "bg-primary" : "bg-white/10"}`}
+              >
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${includeFooter ? "translate-x-4" : "translate-x-0.5"}`} />
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -11,14 +11,13 @@ function skills(text: string) {
 // Colors per template
 const THEME: Record<string, { accent: [number,number,number]; heading: [number,number,number]; sub: [number,number,number] }> = {
   modern:    { accent: [109, 40, 217], heading: [109, 40, 217], sub: [85, 85, 85] },
-  classic:   { accent: [30,  30,  30], heading: [30,  30,  30], sub: [80, 80, 80] },
-  minimal:   { accent: [150,150,150], heading: [30,  30,  30], sub: [120,120,120] },
   executive: { accent: [30,  41,  59], heading: [30,  41,  59], sub: [71, 85,105] },
-  compact:   { accent: [15,  23,  42], heading: [15,  23,  42], sub: [71, 85,105] },
   academic:  { accent: [17,  17,  17], heading: [17,  17,  17], sub: [60, 60, 60] },
+  twocol:    { accent: [74,  26, 107], heading: [74,  26, 107], sub: [85, 85, 85] },
+  clean:     { accent: [17,  17,  17], heading: [17,  17,  17], sub: [85, 85, 85] },
 };
 
-export async function downloadResumePDF(data: ResumeData): Promise<void> {
+export async function downloadResumePDF(data: ResumeData, includeFooter = false): Promise<void> {
   const { personalInfo: p, experiences, projects, education, template } = data;
   const theme = THEME[template] ?? THEME.modern;
 
@@ -90,7 +89,169 @@ export async function downloadResumePDF(data: ResumeData): Promise<void> {
   };
 
   // ── HEADER ───────────────────────────────────────────────────────────────────
-  if (template === "academic") {
+  if (template === "twocol") {
+    // Purple header bar + two-column body
+    doc.setFillColor(74, 26, 107);
+    doc.rect(0, 0, W, 28, "F");
+    doc.setFontSize(19);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text(p.name || "Your Name", marginL, 13);
+    if (p.headline) {
+      doc.setFontSize(8.5);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(226, 196, 245);
+      doc.text(p.headline.toUpperCase(), marginL, 20);
+    }
+    y = 32;
+
+    // Two-column layout: left sidebar (38%) + right main (62%)
+    const sideW = 68;
+    const mainX = marginL + sideW + 6;
+    const mainW = W - mainX - marginR;
+    let sy = y; // sidebar y
+    let my = y; // main y
+
+    // ── Sidebar ──
+    const sbTitle = (t: string) => {
+      sy += 3;
+      doc.setFontSize(8); doc.setFont("helvetica", "bold");
+      doc.setTextColor(74, 26, 107);
+      doc.text(t.toUpperCase(), marginL, sy);
+      doc.setDrawColor(74, 26, 107); doc.setLineWidth(0.3);
+      doc.line(marginL, sy + 1, marginL + sideW, sy + 1);
+      sy += 5;
+    };
+    const sbText = (t: string) => {
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.setTextColor(51, 51, 51);
+      const lines = doc.splitTextToSize(t, sideW) as string[];
+      for (const l of lines) { doc.text(l, marginL, sy); sy += 3.8; }
+    };
+    const sbBullet = (t: string) => {
+      doc.setFontSize(8); doc.setFont("helvetica", "normal");
+      doc.setTextColor(51, 51, 51);
+      const lines = doc.splitTextToSize(t, sideW - 4) as string[];
+      doc.text("•", marginL + 1, sy);
+      doc.text(lines[0], marginL + 4, sy); sy += 3.8;
+      for (let i = 1; i < lines.length; i++) { doc.text(lines[i], marginL + 4, sy); sy += 3.8; }
+    };
+
+    // Contact
+    sbTitle("Contact");
+    if (p.phone) sbText(p.phone);
+    if (p.email) sbText(p.email);
+    if (p.location) sbText(p.location);
+    if (p.linkedin) sbText(p.linkedin);
+    if (p.github) sbText(p.github);
+
+    // Skills in sidebar
+    if (p.skills?.trim()) {
+      sbTitle("Tech Skills");
+      for (const s of skills(p.skills)) sbBullet(s);
+    }
+
+    // Achievements in sidebar
+    if (p.achievements?.trim()) {
+      sbTitle("Achievements");
+      for (const b of buls(p.achievements)) sbBullet(b);
+    }
+
+    if (p.certifications?.trim()) {
+      sbTitle("Certifications");
+      for (const b of buls(p.certifications)) sbBullet(b);
+    }
+
+    // ── Main column ──
+    const mbTitle = (t: string) => {
+      my += 3;
+      doc.setFontSize(8); doc.setFont("helvetica", "bold");
+      doc.setTextColor(74, 26, 107);
+      doc.text(t.toUpperCase(), mainX, my);
+      doc.setDrawColor(74, 26, 107); doc.setLineWidth(0.3);
+      doc.line(mainX, my + 1, mainX + mainW, my + 1);
+      my += 5;
+    };
+
+    if (p.summary?.trim()) {
+      mbTitle("Profile");
+      doc.setFontSize(8.5); doc.setFont("helvetica", "normal"); doc.setTextColor(51, 51, 51);
+      const sl = doc.splitTextToSize(p.summary, mainW) as string[];
+      for (const l of sl) { doc.text(l, mainX, my); my += 4; }
+    }
+
+    if (education.filter(e => e.school).length) {
+      mbTitle("Education");
+      for (const edu of education.filter(e => e.school)) {
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(26, 26, 26);
+        doc.text(edu.school, mainX, my);
+        if (edu.year) { const yw = doc.getTextWidth(edu.year); doc.setFontSize(8); doc.setFont("helvetica", "normal"); doc.setTextColor(102,102,102); doc.text(edu.year, mainX + mainW - yw, my); }
+        my += 4;
+        if (edu.degree) { doc.setFontSize(8); doc.setFont("helvetica", "italic"); doc.setTextColor(85,85,85); doc.text(`${edu.degree}${edu.score ? ` | ${edu.score}` : ""}`, mainX, my); my += 4; }
+        my += 1;
+      }
+    }
+
+    const validExpTC = experiences.filter(e => e.title || e.company);
+    if (validExpTC.length) {
+      mbTitle("Experience");
+      for (const exp of validExpTC) {
+        doc.setFontSize(9); doc.setFont("helvetica", "bold"); doc.setTextColor(26,26,26);
+        doc.text(exp.title || "", mainX, my);
+        if (exp.duration) { const dw = doc.getTextWidth(exp.duration); doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(102,102,102); doc.text(exp.duration, mainX+mainW-dw, my); }
+        my += 4;
+        if (exp.company) { doc.setFontSize(8); doc.setFont("helvetica","italic"); doc.setTextColor(74,26,107); doc.text(exp.company, mainX, my); my += 4; }
+        for (const b of buls(exp.description)) {
+          doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(51,51,51);
+          const bl = doc.splitTextToSize(b, mainW - 4) as string[];
+          doc.text("•", mainX+1, my); doc.text(bl[0], mainX+4, my); my += 3.8;
+          for (let i=1;i<bl.length;i++) { doc.text(bl[i], mainX+4, my); my += 3.8; }
+        }
+        my += 2;
+      }
+    }
+
+    const validProjTC = projects.filter(pr => pr.title);
+    if (validProjTC.length) {
+      mbTitle("Projects");
+      for (const proj of validProjTC) {
+        doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(26,26,26);
+        doc.text(proj.title, mainX, my);
+        if (proj.technologies) { doc.setFontSize(8); doc.setFont("helvetica","normal"); doc.setTextColor(74,26,107); const tw=doc.getTextWidth(proj.technologies); doc.text(proj.technologies, mainX+mainW-tw, my); }
+        my += 4;
+        for (const b of buls(proj.description)) {
+          doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(51,51,51);
+          const bl = doc.splitTextToSize(b, mainW-4) as string[];
+          doc.text("•", mainX+1, my); doc.text(bl[0], mainX+4, my); my += 3.8;
+          for (let i=1;i<bl.length;i++) { doc.text(bl[i], mainX+4, my); my += 3.8; }
+        }
+        my += 2;
+      }
+    }
+
+    // Draw sidebar divider line
+    const colH = Math.max(sy, my) - y + 4;
+    doc.setDrawColor(232, 223, 245); doc.setLineWidth(0.3);
+    doc.line(marginL + sideW + 3, y - 2, marginL + sideW + 3, y + colH);
+
+    // Footer
+    if (includeFooter) {
+      y = Math.max(sy, my) + 8;
+      doc.setDrawColor(180,180,180); doc.setLineWidth(0.3);
+      doc.line(marginL, y, W-marginR, y); y += 6;
+      doc.setFontSize(9); doc.setFont("helvetica","bold"); doc.setTextColor(26,26,26);
+      doc.text("DECLARATION:", marginL, y); y += 5;
+      doc.setFontSize(8.5); doc.setFont("helvetica","normal"); doc.setTextColor(51,51,51);
+      const dl = doc.splitTextToSize("I hereby certify that the above given data are true and correct to the best of my knowledge and belief.", contentW) as string[];
+      for (const l of dl) { doc.text(l, marginL, y); y += 4.5; }
+      y += 6; doc.text("Place:", marginL, y); y += 5; doc.text("Date:", marginL, y);
+      const sw = doc.getTextWidth("Signature."); doc.text("Signature.", W-marginR-sw, y);
+    }
+
+    doc.save(`${p.name || "resume"}.pdf`);
+    return;
+
+  } else if (template === "academic") {
     // Centered name, contact row below
     doc.setFontSize(20);
     doc.setFont("times", "bold");
@@ -135,36 +296,10 @@ export async function downloadResumePDF(data: ResumeData): Promise<void> {
     doc.setTextColor(203, 213, 225);
     doc.text(contacts.join("   "), marginL, 27);
     y = 38;
-  } else if (template === "compact") {
-    // Two-column header
-    doc.setFontSize(16);
-    doc.setFont("helvetica", "bold");
-    setColor(theme.heading);
-    doc.text(p.name || "Your Name", marginL, y);
-    if (p.headline) {
-      doc.setFontSize(8.5);
-      doc.setFont("helvetica", "normal");
-      setColor([100, 116, 139]);
-      doc.text(p.headline, marginL, y + 5);
-    }
-    const contacts = [p.email, p.phone, p.location, p.linkedin, p.github].filter(Boolean);
-    doc.setFontSize(7.5);
-    setColor([71, 85, 105]);
-    let cx = W - marginR;
-    for (const c of contacts.reverse()) {
-      const cw = doc.getTextWidth(c);
-      doc.text(c, cx - cw, y);
-      y += 4;
-    }
-    y = 22;
-    doc.setDrawColor(15, 23, 42);
-    doc.setLineWidth(0.5);
-    doc.line(marginL, y, W - marginR, y);
-    y += 5;
   } else {
-    // Standard header
-    doc.setFontSize(template === "minimal" ? 22 : 20);
-    doc.setFont("helvetica", template === "minimal" ? "normal" : "bold");
+    // Standard header — modern, clean
+    doc.setFontSize(20);
+    doc.setFont("helvetica", "bold");
     setColor(theme.heading);
     doc.text(p.name || "Your Name", marginL, y);
     y += 6;
@@ -183,9 +318,8 @@ export async function downloadResumePDF(data: ResumeData): Promise<void> {
       doc.text(contacts.join("   "), marginL, y);
       y += 4;
     }
-    // Divider
     doc.setDrawColor(theme.accent[0], theme.accent[1], theme.accent[2]);
-    doc.setLineWidth(template === "modern" ? 0.5 : 0.2);
+    doc.setLineWidth(template === "modern" ? 0.5 : 0.3);
     doc.line(marginL, y, W - marginR, y);
     y += 5;
   }
@@ -200,27 +334,8 @@ export async function downloadResumePDF(data: ResumeData): Promise<void> {
   if (p.skills?.trim()) {
     sectionTitle(template === "executive" ? "Core Competencies" : "Skills");
     const sl = skills(p.skills);
-    if (template === "minimal" || template === "compact") {
-      wrappedText(sl.join("  ·  "), marginL, contentW, 8.5);
-    } else {
-      // Skill tags in rows
-      let sx = marginL;
-      const tagH = 5;
-      const tagPad = 3;
-      for (const s of sl) {
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        const tw = doc.getTextWidth(s) + tagPad * 2;
-        if (sx + tw > W - marginR) { sx = marginL; y += tagH + 2; checkPage(tagH + 2); }
-        doc.setFillColor(237, 233, 254);
-        doc.setDrawColor(237, 233, 254);
-        doc.roundedRect(sx, y - 3.5, tw, tagH, 1, 1, "F");
-        doc.setTextColor(91, 33, 182);
-        doc.text(s, sx + tagPad, y);
-        sx += tw + 2;
-      }
-      y += 7;
-    }
+    // All templates: clean comma/bullet separated — no pill tags in PDF
+    wrappedText(sl.join("  •  "), marginL, contentW, 8.5);
   }
 
   // ── EXPERIENCE ───────────────────────────────────────────────────────────────
@@ -317,6 +432,34 @@ export async function downloadResumePDF(data: ResumeData): Promise<void> {
   if (p.certifications?.trim()) {
     sectionTitle("Certifications");
     for (const b of buls(p.certifications)) bullet(b);
+  }
+
+  // ── DECLARATION FOOTER (optional) ────────────────────────────────────────────
+  if (includeFooter) {
+    checkPage(30);
+    y += 8;
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(marginL, y, W - marginR, y);
+    y += 6;
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    setColor([26, 26, 26]);
+    doc.text("DECLARATION:", marginL, y);
+    y += 5;
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "normal");
+    setColor([51, 51, 51]);
+    const declText = "I hereby certify that the above given data are true and correct to the best of my knowledge and belief.";
+    const declLines = doc.splitTextToSize(declText, contentW) as string[];
+    for (const line of declLines) { doc.text(line, marginL, y); y += 4.5; }
+    y += 6;
+    doc.text("Place:", marginL, y);
+    y += 5;
+    doc.text("Date:", marginL, y);
+    doc.setFont("helvetica", "normal");
+    const sigW = doc.getTextWidth("Signature.");
+    doc.text("Signature.", W - marginR - sigW, y);
   }
 
   doc.save(`${p.name || "resume"}.pdf`);

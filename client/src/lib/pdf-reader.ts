@@ -1,45 +1,33 @@
 /**
- * Shared PDF/DOCX text extraction utility.
- * Uses pdfjs-dist v5 with proper Vite worker URL resolution.
+ * Shared PDF/DOCX text extraction — pdfjs-dist v5
+ * Uses CDN worker with exact installed version to avoid mismatch errors.
  */
 
-let pdfjsInitialized = false;
+let initialized = false;
 
-async function getPdfjs() {
-  const pdfjsLib = await import("pdfjs-dist");
-  if (!pdfjsInitialized) {
-    // Use Vite's ?url import to get the correct worker path at build time
-    // This avoids CDN version mismatches and no-worker issues in pdfjs v5
-    try {
-      // @ts-ignore — Vite ?url suffix
-      const workerUrl = new URL("pdfjs-dist/build/pdf.worker.min.mjs", import.meta.url);
-      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.href;
-    } catch {
-      // Fallback: use CDN with exact installed version
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
-    }
-    pdfjsInitialized = true;
+async function initPdfjs() {
+  const lib = await import("pdfjs-dist");
+  if (!initialized) {
+    // Exact version CDN — avoids the new URL() Vite resolution issues
+    lib.GlobalWorkerOptions.workerSrc =
+      `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${lib.version}/pdf.worker.min.mjs`;
+    initialized = true;
   }
-  return pdfjsLib;
+  return lib;
 }
 
 export async function extractTextFromPDF(file: File): Promise<string> {
   try {
-    const pdfjsLib = await getPdfjs();
-    const buffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({
-      data: new Uint8Array(buffer),
-      useSystemFonts: true,
-      disableFontFace: true,
-    }).promise;
+    const lib = await initPdfjs();
+    const data = new Uint8Array(await file.arrayBuffer());
+    const pdf = await lib.getDocument({ data, useSystemFonts: true, disableFontFace: true }).promise;
 
-    const pageTexts: string[] = [];
-
+    const pages: string[] = [];
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       const content = await page.getTextContent();
 
-      // Group text items by Y position to preserve reading order
+      // Group by Y to preserve reading order (top→bottom, left→right)
       const rows = new Map<number, { x: number; str: string }[]>();
       for (const item of content.items as any[]) {
         const str: string = item.str ?? "";
@@ -50,19 +38,13 @@ export async function extractTextFromPDF(file: File): Promise<string> {
       }
 
       const pageText = Array.from(rows.entries())
-        .sort((a, b) => b[0] - a[0]) // top to bottom
-        .map(([, items]) =>
-          items
-            .sort((a, b) => a.x - b.x) // left to right
-            .map(i => i.str)
-            .join(" ")
-        )
+        .sort((a, b) => b[0] - a[0])
+        .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.str).join(" "))
         .join("\n");
 
-      pageTexts.push(pageText);
+      pages.push(pageText);
     }
-
-    return pageTexts.join("\n").trim();
+    return pages.join("\n").trim();
   } catch (err) {
     console.error("PDF extraction failed:", err);
     return "";
@@ -84,9 +66,5 @@ export async function extractTextFromFile(file: File): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return extractTextFromPDF(file);
   if (ext === "docx" || ext === "doc") return extractTextFromDOCX(file);
-  try {
-    return (await file.text()).trim();
-  } catch {
-    return "";
-  }
+  try { return (await file.text()).trim(); } catch { return ""; }
 }
